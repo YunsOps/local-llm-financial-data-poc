@@ -1,0 +1,29 @@
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+# Local experiment data and model files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.log
+*.gguf
+*.safetensors
+# OS files
+.DS_Store
+Thumbs.db
+# Local scratch file
+/test.py
+
+# Reviewed PoC submission evidence
+!/data/poc-submission-20260915.sqlite
