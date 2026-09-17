@@ -9,7 +9,7 @@
 - 평가 대상: 입력 수치와 관측 시각, 잔액, 주문 및 체결, 손익에 대한 설명
 - 제외 범위: 미래 가격 예측, 실제 주문과 매매 수익률, 한국어 문체 품질
 
-[상세 보고서 목록](reports/README.md) · [문항과 채점 기준](modules/poc_cases.json) · [응답 원본 SQLite](data/poc-submission-20260915.sqlite)
+[최종 보고서](reports/final_report.md) · [문항과 채점 기준](modules/cases.json) · [실험별 CSV와 채점 근거](data/README.md)
 
 ## 핵심 결과
 
@@ -26,13 +26,13 @@
 
 **300초 이내 응답이 필요하다면 Qwen 권장 설정 추론을 우선 검토한다.** 10회 모두 제한 내 지정 JSON을 반환했다. Gemma는 설명 점수가 1점 높지만 300초 내 반환은 6/10회였으므로, 응답 지연을 허용하는 경우의 비교 후보이다. 권장 설정 추론의 회고 점수는 Qwen 10/12, Gemma 11/12이며 전체 30점에 이미 포함된다.
 
-두 모델 모두 설명 누락과 부가 주장 오류가 남았다. 권장 설정의 문항별 한 번 실행을 기존의 두 번 반복 통과 조건 충족으로 처리하지 않았으며, 실제 자동매매 도입을 승인한 결과도 아니다. 자세한 응답 인용과 감점 근거는 [로컬 비교 보고서](reports/2026-09-15_KAN-202_local-poc.md)와 [응답 검토 보고서](reports/2026-09-15_KAN-203_review.md)에 정리했다.
+두 모델 모두 설명 누락과 부가 주장 오류가 남았다. 권장 설정의 문항별 한 번 실행을 기존의 두 번 반복 통과 조건 충족으로 처리하지 않았으며, 실제 자동매매 도입을 승인한 결과도 아니다. 결과 해석과 대표적인 감점 사유는 [최종 보고서](reports/final_report.md)에 정리했으며, 개별 응답과 채점 근거는 [실험별 CSV](data/README.md)에서 확인할 수 있다.
 
 ## 모델 선정과 실행 환경
 
 공개 점수만으로 모델을 선정하지 않았다. 양자화 배포 크기와 Ollama 지원을 먼저 확인한 뒤, Artificial Analysis의 종합 지능 점수와 지시 준수, 긴 자료 활용 등의 지표를 참고했다. 당시 비교에서 Qwen은 긴 자료 활용, Gemma는 지시 준수에서 상대 강점을 보여 서로 다른 계열의 후보로 선정했다.
 
-약 12GB라는 GPU 용량은 초기 선별 조건이며, 모델 파일 크기와 실제 실행 메모리는 다르다. 큰 문맥 창에서는 추가 메모리가 필요하며, 이번 권장 설정의 Qwen 실행에는 일부 CPU 분산 적재가 포함됐다. 공개 평가와 로컬 양자화 환경도 같지 않다. 출처와 당시 점수, 라이선스, 전체 모델 식별값은 [후보 선정 보고서](reports/2026-09-15_KAN-199_model-selection.md)에 있다.
+약 12GB라는 GPU 용량은 초기 선별 조건이며, 모델 파일 크기와 실제 실행 메모리는 다르다. 큰 문맥 창에서는 추가 메모리가 필요하며, 이번 권장 설정의 Qwen 실행에는 일부 CPU 분산 적재가 포함됐다. 공개 평가와 로컬 양자화 환경도 같지 않다.
 
 | 항목 | 시험 환경 |
 | --- | --- |
@@ -107,7 +107,7 @@ EMA는 비교를 위해 주어진 값이며 모델에게 지표 재계산을 요
 
 Qwen은 일반 과제의 공식 권장 샘플링과 생성 한도, Serving 절의 문맥 안내를 적용했다. Gemma의 공식 샘플링을 적용하되 문맥 32,768과 생성 16,384는 실행자가 정한 한도이다. 1,800초는 답변 완료를 관찰하기 위한 제한이며 **300초 내 반환이라는 운영 요구는 별도로 평가**했다.
 
-공식 출처: [Qwen Best Practices 및 Serving](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), [Gemma Best Practices](https://ai.google.dev/gemma/docs/core/model_card_4#best-practices). 실제 요청과 확인 당시 설정은 SQLite에 보존했다.
+공식 출처: [Qwen Best Practices 및 Serving](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), [Gemma Best Practices](https://ai.google.dev/gemma/docs/core/model_card_4#best-practices). 실제 지시문과 입력 자료, 요청 설정은 실험별 CSV에서 확인할 수 있다.
 
 ### 점수와 통과 조건
 
@@ -117,7 +117,7 @@ Qwen은 일반 과제의 공식 권장 샘플링과 생성 한도, Serving 절�
 2. **거래 제한 검사:** 코드로 의견과 비율, 가용 잔액, 수수료와 최소 주문, 누락 시 보류 규칙 확인
 3. **설명 평가:** Codex가 최종 답변을 입력 수치와 계산식에 대조하고 인용문, 입력 위치와 판정 이유 기록
 
-의미에 대한 판정은 자동 채점 코드가 수행한 것이 아니다. 검토 코드는 인용과 입력 경로를 확인해 판정을 저장한다. 독립된 사람의 교차 검토로 표현하지 않는다.
+의미에 대한 판정은 자동 채점 코드가 수행한 것이 아니다. 기존 시험의 판정은 당시 입력과 응답을 대조해 작성한 결과이며, 현재 CSV에는 해당 점수와 한국어 근거를 보존했다. 새 시험은 같은 채점란에 직접 판정을 작성한다.
 
 문항별 필수 세 항목은 완전 충족 1점, 부분 누락 또는 오류 0점이다. 같은 값에 대한 모순도 미충족으로 처리한다. 최종 답변 미완료는 0/3점으로 처리하되 내용 오류와 구분하며, 판정할 결정이 없으면 거래 제한은 판정 불가이다. 미실행과 미검토를 채점 완료로 처리하지 않는다. 필수 항목 밖의 잘못된 주장도 별도로 기록했다.
 
@@ -142,187 +142,149 @@ Luna는 Q01, Q03, Q06, Q08, Q10을 각 한 번씩 실행해 지정 JSON 5/5, 필
 | 30분마다 한 번 | 48 / 1,440 | 약 $0.0360 | 약 **$1.08** |
 | 1시간마다 한 번 | 24 / 720 | 약 $0.0180 | 약 **$0.54** |
 
-이는 **비추론 시험 사용량을 환산한 비용**이다. 실제 비용은 입력과 출력 길이, 캐시, 추론량과 재시도에 따라 달라진다. 세금 및 환율은 포함하지 않았으며 청구서 확정 금액도 아니다. [Luna 상세 보고서](reports/2026-09-15_KAN-204_cloud-poc.md)에 사용량과 단가 출처를 보존했다. 로컬 전기요금은 측정하지 않았다.
+이는 **비추론 시험 사용량을 환산한 비용**이다. 실제 비용은 입력과 출력 길이, 캐시, 추론량과 재시도에 따라 달라진다. 세금 및 환율은 포함하지 않았으며 청구서 확정 금액도 아니다. 호출별 사용량과 산출 비용은 [Luna 결과 CSV](data/gpt-5.6-luna_cloud-nonthinking-english_20260915-210424.csv), 적용 단가와 출처는 [API 호출 코드](modules/call_openai.py)에 보존했다. 로컬 전기요금은 측정하지 않았다.
 
-## 코드 구조와 정리된 범위
+## 코드 구조
 
 ```text
-local-llm-financial-data-poc/
-├── modules/
-│   ├── poc_cases.json                # 공통 지시문, 고정 입력, 별도 채점 기준
-│   ├── evaluation_poc.py             # 로컬 실험 계획 등록과 실행
-│   ├── evaluation_local.py           # Ollama 호출, 시간과 GPU 측정, 모델 해제
-│   ├── evaluation_cloud.py           # Luna 호출과 사용량 및 비용 기록
-│   ├── response_schema.py            # 공통 JSON Schema
-│   ├── evaluate_response.py          # 형식 및 거래 제한 검사
-│   ├── evaluation_review.py          # 최종 답변과 추론의 근거를 연결한 검토 저장
-│   ├── evaluation_storage.py         # 실험, 호출과 평가 기록의 SQLite 저장
-│   ├── evaluation_report.py          # 집계와 조건별 보고서 생성
-│   ├── evaluation_export.py          # 선택한 실험을 별도 SQLite로 내보내기
-│   └── json_utils.py                 # JSON 직렬화와 엄격한 파싱
-├── tests/
-│   ├── __init__.py                   # 검사 패키지와 공통 대체 객체의 가져오기 지원
-│   └── test_evaluation_*.py          # 8개 영역의 자동 검사, 실제 모델 및 유료 API 호출 없음
-├── data/
-│   └── poc-submission-20260915.sqlite # 9월 15~16일 원본을 보존한 제출 DB
-├── reports/                         # 상세 보고서 8개와 읽는 순서
-├── pyproject.toml
-├── uv.lock
-└── README.md
+main.py                    # 설정과 문항 선택, 호출 및 검사와 저장 순서
+modules/
+├── cases.json             # 가상 입력, 기대 답변과 문항별 채점 기준
+├── prompt.py              # 공통 지시문과 입력 자료로 요청 메시지 구성
+├── call_ollama.py          # Ollama 호출, 시간과 GPU 측정, 모델 해제
+├── call_openai.py          # OpenAI 호출, 시간과 토큰 및 비용 계산
+├── save_csv.py             # 호출당 한 행 저장, 입력 분리와 채점란 보존
+└── validate_response.py    # 공통 JSON 스키마, 형식과 정답 및 거래 규칙 검사
+data/                      # 모델과 조건별 결과 CSV
+reports/                   # 최종 보고서와 실험 집계 엑셀 파일
 ```
 
-현재 실행 경로는 **문항 선택 → 계획과 설정 저장 → 모델 호출 및 측정 → 형식과 거래 제한 검사 → 응답 저장 → 근거를 대조한 검토 → 보고서 집계**이다.
+실행 순서는 **가상 자료 읽기 → 지시문과 입력 구성 → 모델 호출 → 응답 검사 → CSV 저장**이다. `main.py`에서 선택한 문항을 반복하며, 응답을 저장한 다음 문항으로 이동한다.
 
-`modules/`에는 실행과 평가에 필요한 Python 파일 10개와 문항 JSON 1개를 두고, 자동 검사 8개 파일은 `tests/`에서 관리한다. 실제 모델 호출은 `evaluation_poc.py` 또는 `evaluation_cloud.py`에서 시작한다. `tests/`의 대체 응답은 검사에만 사용하며, 모델 요청의 입력으로 전달하지 않는다.
+`cases.json`의 문항은 세 부분으로 구분한다.
 
-`poc_cases.json`은 모델에 전달할 지시문과 입력, 평가자 전용 정답을 함께 보관한다. 실행기는 이 중 지시문과 입력만 요청에 넣는다. `response_schema.py`는 반환할 다섯 필드의 구조를 정의하고, `evaluate_response.py`는 실제 응답의 형식과 거래 규칙을 검사한다. 설명의 옳고 그름은 검토자가 판정하고, `evaluation_review.py`는 인용문과 원본 경로를 확인해 그 판정을 저장한다.
+- `input`: 모델에 전달할 시장 자료, 계좌와 이력, 거래 규칙과 필수 질문.
+- `expected`: 검사에 사용할 허용 결정과 별도 검토 기준.
+- `rubric`: 필수 세 항목의 기대 설명과 근거가 되는 입력 위치.
 
-과거 보고서와 SQLite의 실행 코드 원문에는 당시 파일 이름을 유지했다. 현재 대응 경로는 다음과 같다.
+`prompt.py`의 `build_messages(input_data, language)`는 자료를 인자로 받아 공통 지시문과 현재 입력만 담은 메시지를 만든다. 이 함수는 가상 사례 파일이나 특정 데이터 공급자를 직접 읽지 않는다. 현재는 `case["input"]`을 전달하며, 이후 Upbit 자료를 사용하려면 수집 결과를 같은 입력 구조로 변환해 전달할 수 있다. 이번 변경에 실제 수집이나 주문 기능을 추가하지 않았다.
 
-| 과거 경로 | 현재 경로 |
+현재 응답 검사는 **가상 문항의 정답을 함께 받는 방식**이다. `validate_response(case["input"], response, case["expected"])`가 JSON 구조, 허용된 결정과 비율, 잔액 및 수수료와 최소 주문금액을 확인한다. 기대 답변과 채점 기준은 모델에 보내지 않는다. 설명의 사실 정확성은 자동 판정하지 않으며, 입력과 기대 설명을 대조해 CSV의 단일 채점란에 작성한다. 기존 한국어 채점 근거는 그대로 유지했다.
+
+실험 관리용 ID, 해시 생성과 매 호출 전 파일 변경 감시는 제거했다. 별도 JSON 보조 모듈과 출력 스키마 파일은 `validate_response.py`로 통합했다. 호출 코드는 시간 제한과 부분 응답 보존, 자원 측정, 모델 해제 및 유료 자동 재시도 차단을 담당한다. 저장 코드는 파일 덮어쓰기 방지, 저장 실패 시 중단과 기존 채점 보존을 담당한다.
+
+## 실행 예시
+
+```python
+from modules.prompt import build_messages
+from modules.validate_response import get_response_schema, validate_response
+from modules.call_ollama import call_ollama
+
+# 사례 선택과 CSV 저장을 포함한 실제 전체 실행은 main.py에서 수행
+messages = build_messages(case["input"], language="en")
+record = call_ollama(
+    "qwen3.5:9b", messages,
+    num_ctx=8192, num_predict=2048, thinking=False,
+    output_format=get_response_schema(),
+)
+checks = validate_response(case["input"], record["content"], case["expected"])
+```
+
+위 코드는 함수 사이에 어떤 값을 전달하는지 보여주는 발췌다. 전체 실험은 아래 명령으로 실행하며, CSV 저장은 `main.py`가 처리한다.
+
+## 결과 CSV 확인
+
+[실험별 CSV 목록과 읽는 방법](data/README.md)에서 파일을 선택한다. 모델, 설정, 입력 언어와 단계가 다른 결과는 별도 파일이다. 생성 한도 2,048과 4,096의 추론 결과도 구분했다.
+
+CSV의 **한 행은 호출 한 번**이다. 별도의 시험 정보 행이나 원문 계속 행이 없으므로 행 종류를 필터링할 필요가 없다. 파일명에서 모델과 시험 조건을 확인하고, 각 행에서 실제 지시문, 개별 입력값, 다섯 출력 필드, 설정, 측정값과 채점을 확인한다.
+
+| 내용 | 확인할 열 |
 | --- | --- |
-| `modules/data_evaluation_cases.py` | `modules/json_utils.py` |
-| `modules/evaluation_prompt.py` | `modules/response_schema.py` |
-| `modules/validate_evaluation_*.py` | `tests/test_evaluation_*.py` |
+| 실제 공통 지시문 | `system_instruction` |
+| 실제 입력 | `input_`으로 시작하는 열, 원래 JSON의 키 경로와 배열 순서에 따라 분리 |
+| 반환값 | `decision`, `buy_allocation_percentage`, `sell_allocation_percentage`, `reason`, `reflection_log` |
+| 추론과 파싱 불가 응답 | `thinking`, `unparsed_response` |
+| 요청 설정 | `num_ctx`, `num_predict`, `think`, `temperature`, `top_p` 등 |
+| 측정값 | `input_tokens`, `generated_tokens`, `wall_seconds`, `load_seconds`, `gpu_peak_mib`, `cost_usd` 등 |
+| 자동 검사 | `json_valid`, `trading_valid`, `json_within_300_seconds` |
+| 사실 채점 | `review_1_*`~`review_3_*`의 기대 설명, 입력 위치, 판정, 점수, 인용문, 근거 및 총점 `score` |
+| 추가 관찰 | `observation_1_*` 등의 별도 오류, 인용문, 입력 위치와 한국어 근거 |
 
-과거 계획을 바탕으로 **새 계획을 만들면** 당시 입력과 설정을 가져오고 현재 코드 원문과 해시를 새로 저장한다. 기존 계획을 그대로 실행할 때 적용되는 코드 변경 검사는 유지하므로, 이전 실험을 재현할 때에는 아래 준비 명령으로 새 ID를 생성한다.
+예를 들어 첫 일봉의 종가는 `input_market_input_ohlcv_day_1_close`, 공포탐욕지수 값은 `input_market_input_fear_and_greed_value`다. 배열은 1부터 번호를 붙이고 `*_count`로 길이를 표시한다. 명시적 결측값은 `null`, 빈 배열은 count 0으로 구분한다. 컬럼명은 영어이며 **입력, 응답, 인용문과 한국어 채점 근거는 원문 그대로 유지**한다. 관리용 시도 ID, 호출 ID, 모델명, 조건명, 단계, 언어, 반복 번호와 상태 열은 저장하지 않는다. 가상 주문 번호처럼 실제 입력에 포함된 값은 보존한다.
 
-- 유지한 기능: 고정 문항, 로컬 및 Luna 호출, 조건별 실행 계획, 측정, 검토와 보고서
-- 이후 반영한 기능: 기본 추론의 생성 한도별 계획, 대표 문항 완료 점검, 권장 설정 전체 문항 비교, 추론 원문 검토 및 비교 보고서
-- 정리한 기능: 실시간 Upbit 수집 및 주문, Notion 응답 저장, 네 계좌 운영, 순차 대화와 토론, 추가 후보 확장 코드
-- 정리한 파일: 이전 main.py, data_ohlcv 계열과 trade_upbit.py 등 자동매매 모듈, 이전 trading.db와 당시 evaluation.db. 구체적인 목록은 [제출 정리 기록](reports/2026-09-15_KAN-206_reexecution-and-submission.md)
-- Git 제외: .env, test.py, 가상환경, 모델 가중치와 새 실험 DB. 제출용 SQLite 한 개만 예외로 포함
+기존 점수는 저장된 최신 필수 항목 판정을 옮긴 값이다. 새 호출의 판정과 점수는 공란이며, `pass`는 1점, `partial`과 `fail`은 0점이다. 세 점수의 합계를 `score`에 직접 작성하며, 코드가 사실의 의미를 자동 채점하거나 합계를 자동 갱신하지 않는다. 검토자 정보나 별도 재검토 열은 없다.
 
-삭제된 코드는 현재 README의 실행 과정에서 사용하지 않는다. 현재의 `data/evaluation.db`는 재실행 시 새로 만들거나 원본에서 복사하는 작업용 DB이며, 과거에 정리한 DB와 구분한다.
+30,000자를 넘는 문자열만 같은 행의 `thinking_part_2`처럼 뒤이은 열로 나눈다. 필드 원문과 part_2, part_3을 순서대로 연결하면 전체 문장이다. 원래 JSON의 공백과 키 순서까지 중복 저장하는 대신, 파싱한 다섯 출력값을 저장한다. JSON 파싱에 실패한 응답은 교정 없이 `unparsed_response`에 남긴다.
 
-## 원본 기록
+측정값 공란은 미측정 또는 해당 없음이며 0이 아니다. 중단되어 응답 원본이 없는 과거 2건과 미채점 워밍업 4건의 점수는 공란으로 유지했다. 길이 제한으로 최종 답변이 나오지 않아 받은 0점은 미완료에 대한 당시 판정이며, 추론 내용 전체가 틀렸다는 뜻이 아니다.
 
-2026-09-17 확인 기준 제출 DB는 **실험 계획 16개, 호출 시도 153개, 저장된 호출 원본 151개**이다. 153개 시도에는 중단 2개가 포함된다. 저장된 호출에는 길이 제한으로 끝난 응답도 있으므로 151개 모두 최종 답변을 완성했다는 의미는 아니다.
+## 설치와 새 실험 실행
 
-| 기록 범위 | 저장된 호출 원본 수 |
-| --- | ---: |
-| 9월 15일: 기본 비추론 영문 40, 한국어 12, Luna 5, 워밍업 2, 재실행 1 | 60 |
-| 9월 16일: 기본 추론 워밍업 | 2 |
-| 기본 추론 생성 한도 2,048 / 4,096 | 24 / 19 |
-| 권장 설정 대표 Q08 완료 점검 | 2 |
-| 권장 설정 비추론 / 추론 본 시험 | 20 / 20 |
-| 권장 설정 모드별 워밍업 | 4 |
-| 합계 | **151** |
-
-계획만 만들고 호출하지 않은 항목도 16개 계획에 포함되어 있다. 호출 없는 계획, 중단, 길이 제한 종료와 정상 답변을 별도로 조회한다.
-
-| SQLite 테이블 | 보존 내용 |
-| --- | --- |
-| evaluation_experiments | 계획, 입력과 채점 기준, 설정, 당시 코드 원문과 해시 |
-| evaluation_attempts | 실제 요청, 실행 상태, 원본 연결, 형식 검사와 검토 기록 |
-| evaluation_calls | 최종 응답과 추론, 토큰, 시간, 자원 관측과 종료 사유 |
-| evaluation_export_manifest | 최초 9월 15일 60회 내보내기 당시 범위. 현재 전체 DB의 목록은 아님 |
-
-파일명의 20260915는 최초 제출 시점이다. 이후 9월 16일 실험도 같은 파일에 보존했고 과거 원본을 유지했다. 최초 내보내기 명세와 예전 보고서의 60회는 당시 기록이며 현재 총수와 구분한다.
-
-현재 제출 DB SHA-256:
-`81ce73b1e404fe776cbd0a22f09c85b8e6e9c371ab94f1994f22eebd27b79a51`
-
-## 설치와 결과 조회
-
-저장소 루트의 PowerShell 기준이다. Python 3.12와 uv가 필요하다. **저장된 결과 조회에는 실행 중인 모델이나 API 키가 필요 없다.**
+저장소 루트의 PowerShell 기준이다. Python 3.12와 uv를 사용한다. CSV 열람에는 Ollama 서버나 API 키가 필요 없다.
 
 ```powershell
-git clone https://github.com/YunsOps/local-llm-financial-data-poc.git
-cd local-llm-financial-data-poc
 uv sync --frozen --python 3.12
-
-# 기본 비추론 결과 조회
-uv run --frozen python -m modules.evaluation_report poc-main-20260915T113044Z --db data/poc-submission-20260915.sqlite
-
-# 권장 설정 추론 결과 조회
-uv run --frozen python -m modules.evaluation_report poc-best-practices-thinking-main-20260916T053346Z --db data/poc-submission-20260915.sqlite
-
-# Luna 사용량과 평가 결과 조회
-uv run --frozen python -m modules.evaluation_report poc-cloud-20260915T114757Z --db data/poc-submission-20260915.sqlite
-```
-
-원본 ID를 확인할 때에는 위 CLI 또는 SQLite의 evaluation_experiments를 사용한다. 기본 추론 ID는 `poc-main-reasoning-20260916T025114Z`, `poc-main-reasoning-4096-20260916T035031Z`이다. 권장 비추론 ID는 `poc-best-practices-nonthinking-main-20260916T053337Z`이다.
-
-## 새 실험 재실행
-
-모델을 실제 호출하려면 Ollama 서버를 먼저 실행하고 두 모델을 설치한다.
-
-```powershell
 ollama pull qwen3.5:9b
 ollama pull gemma4:12b
-ollama --version
-ollama ls
 ```
 
-동일 태그라도 가중치가 바뀔 수 있다. 실행 전 설치 digest와 기준 실험의 값을 비교하며 다르면 중단한다. 변경된 가중치를 사용한 결과를 기존 모델 파일의 재현으로 취급하지 않는다.
-
-### 권장 설정의 두 모드 비교
-
-기존 계획과 입력을 사용하되, **제출 원본을 작업용 DB로 복사**한 뒤 새 실험 ID로 실행한다. 기존 작업 DB를 덮어쓰지 않는다.
+각 명령은 **모델 하나, 실행 조건 하나, 언어 하나의 CSV 한 개**를 만든다. 파일명은 영문 `model_trial_YYYYMMDD-HHMMSS.csv`이며 한국 시간의 시험 시작 시각을 사용한다. 임의 식별값이나 순번은 붙이지 않고, 같은 이름이 이미 있으면 기존 파일을 보존한 채 호출 전에 중단한다. 실패한 호출을 자동으로 다시 실행하거나 다른 실험과 합치지 않는다.
 
 ```powershell
-if (!(Test-Path data/evaluation.db)) {
-    Copy-Item data/poc-submission-20260915.sqlite data/evaluation.db
-}
+# Qwen 권장 설정 비추론, 영문 10문항 각 1회
+uv run --frozen python main.py --model qwen3.5:9b --condition recommended-nonthinking
 
-# 모델을 호출하지 않고 새 비추론 계획 등록
-uv run --frozen python -m modules.evaluation_poc --prepare-best-practices-from poc-completion-check-20260916T045745Z
+# Gemma 권장 설정 추론, 영문 10문항 각 1회
+uv run --frozen python main.py --model gemma4:12b --condition recommended-thinking
 
-# 모델을 호출하지 않고 새 추론 계획 등록
-uv run --frozen python -m modules.evaluation_poc --prepare-best-practices-from poc-completion-check-20260916T045745Z --thinking
+# Qwen 기본 설정 비추론, 영문 10문항 각 2회
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking
 
-# 각 준비 명령이 출력한 experiment_id를 붙여 넣어 실행, 계획당 로컬 20회
-uv run --frozen python -m modules.evaluation_poc <new_nonthinking_experiment_id>
-uv run --frozen python -m modules.evaluation_poc <new_thinking_experiment_id>
+# Gemma 기본 설정 추론, 생성 한도 4,096, 영문 10문항 각 1회
+uv run --frozen python main.py --model gemma4:12b --condition basic-thinking --num-predict 4096 --repeat 1
+
+# 한국어 세 문항 각 2회, 별도 CSV
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --language ko
+
+# W00 워밍업 1회, 본 시험과 별도 CSV
+uv run --frozen python main.py --model qwen3.5:9b --condition recommended-thinking --cases W00
 ```
 
-모드별 W00 워밍업 계획은 같은 준비 명령에 `--mode-warmup`을 붙여 별도로 생성한다. 워밍업을 본 문항 점수에 합산하지 않는다. 매 호출 뒤 모델을 해제하므로 본 시험 전체가 항상 메모리에 미리 적재된 상태로 실행되는 것은 아니다.
+`--cases Q01 Q03`으로 문항을 선택하고, `--repeat`, `--num-ctx`, `--num-predict`, `--timeout`으로 시험 조건을 명시할 수 있다. 기본 저장 위치는 `data`이며 `--output-dir`로 변경할 수 있다. W00과 본 시험 문항은 한 파일에 섞지 않는다.
 
-새 응답의 의미 평가는 자동으로 복사되지 않는다. `record_required_review()`로 응답 인용, 입력 경로와 판정 이유를 다시 기록해야 하며, 미검토 응답은 과거 점수를 가져오거나 0점 확정으로 표시하지 않는다.
+`recommended`는 2026-09-16 실험에서 사용한 모델별 권장 샘플링과 운영자가 정한 실행 한도를 재사용하는 이름이다. 최신 공식 문서를 자동으로 반영하는 기능은 아니다. 시험 시작 전에 로컬 모델의 설치 여부와 다른 모델의 적재 여부를 확인한다. 실행 코드의 해시 감시와 설치 메타데이터의 중복 기록은 하지 않으므로, 시험 중 코드나 설치 모델을 변경하지 않는 조건이다.
 
-### 기본 설정과 한 문항 재실행
+Luna는 `.env`에 `OPENAI_API_KEY`를 설정한 후 아래 명령을 명시적으로 실행한다. Q01, Q03, Q06, Q08, Q10을 한 번씩 유료 호출하고 별도 CSV 한 개를 만든다. 로컬 명령은 Luna를 자동 호출하지 않는다.
 
 ```powershell
-# 기본 비추론: 영문 40회와 한국어 12회의 새 계획 등록
-uv run --frozen python -m modules.evaluation_poc --prepare main
-uv run --frozen python -m modules.evaluation_poc <new_main_experiment_id>
-
-# 기본 추론: 기존 영문 입력, 문항당 한 번, 생성 한도 4,096
-uv run --frozen python -m modules.evaluation_poc --prepare-mode-from poc-main-20260915T113044Z --mode-num-predict 4096 --mode-repeat-count 1
-uv run --frozen python -m modules.evaluation_poc <new_reasoning_experiment_id>
-
-# Gemma Q06 영문 한 문항만 별도 재실행
-uv run --frozen python -m modules.evaluation_poc --prepare-selfcheck-from poc-main-20260915T113044Z --model gemma4:12b
-uv run --frozen python -m modules.evaluation_poc <new_selfcheck_experiment_id>
+uv run --frozen python main.py --model gpt-5.6-luna --condition cloud
 ```
 
-준비 명령은 모델 정보를 조회하고 계획을 저장하며, 답변을 생성하지 않는다. 같은 계획에 이미 등록한 시도는 성공 여부와 관계없이 자동 재호출하지 않는다. 입력이나 설정을 바꾸면 새 계획으로 실행한다.
+실행 중인 CSV를 다른 프로그램이 잠그거나 저장에 실패하면 다음 호출을 중단한다. 편집과 채점은 실험 종료 후 진행한다. 일반 예외와 Ctrl+C는 오류 행을 저장한 뒤 처리한다. 프로세스 강제 종료나 전원 차단으로 호출 함수가 반환하지 못한 결과는 CSV에 남지 않을 수 있다. 다음 실행은 새 실험이며 중단된 파일을 자동으로 이어서 호출하지 않는다.
 
-### Luna 호출, 보고서와 내보내기
+## 보존된 실험 기록
 
-Cloud 비교에만 프로젝트 .env의 `OPENAI_API_KEY`가 필요하다. 키를 Git에 올리지 않는다. 다음 두 번째 명령은 **유료 5회 호출**이다. 거래소나 Notion 키는 사용하지 않는다.
+`data`의 기존 결과는 24개 CSV에 153개 시도와 151개 호출 원본, 채점이 있는 147개 결과를 담고 있다. 당시 입력, 응답, 측정값과 점수를 그대로 보존한 자료다. 완료된 CSV를 다시 생성하거나 채점 결과를 덮어쓰지 않는다.
+
+이전 실험의 원본 SQLite 파일은 증빙으로 보존했으며 현재 프로그램에서는 사용하지 않는다. 과거 보고서에 있는 저장 방식과 명령은 당시 이력이다. 현재 코드는 CSV 생성부터 시작하며 실행 방법은 위 명령을 기준으로 한다.
+
+## 실행하면서 응답 검사하기
+
+별도 tests 폴더나 검사 전용 실행 명령 없이 `main.py`에서 모델 호출과 응답 검사를 함께 수행한다. 빠르게 확인하려면 문항과 반복 수를 지정한다.
 
 ```powershell
-uv run --frozen python -m modules.evaluation_cloud --prepare-from-local poc-main-20260915T113044Z
-uv run --frozen python -m modules.evaluation_cloud <new_cloud_experiment_id>
-
-# 새 결과 보고서 생성, 기존 상세 보고서 덮어쓰기 방지
-uv run --frozen python -m modules.evaluation_report <new_experiment_id> --markdown reports/new-result.md
-
-# 두 권장 모드의 비교 보고서 생성
-uv run --frozen python -m modules.evaluation_report <new_nonthinking_experiment_id> --best-practices-thinking-id <new_thinking_experiment_id> --markdown reports/new-mode-comparison.md
-
-# 선택한 실험을 별도 SQLite로 내보내기
-uv run --frozen python -m modules.evaluation_export <new_experiment_id> --output data/new-export.sqlite
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --cases Q01 --repeat 1
 ```
 
-## 코드 검사와 보존 원칙
+위 명령은 실제 모델을 한 번 호출하고 결과를 `data`에 저장한다. 완료 시 화면과 CSV에서 다음 항목을 확인한다.
 
-실제 모델과 유료 API를 호출하지 않고 요청 구성, 검산, 중복 실행 방지, 저장, 검토 근거, 집계와 내보내기를 검사한다. 2026-09-17 기준 **68개 검사 통과**, 제출 SQLite 무결성 검사 통과를 확인했다.
+| 항목 | 확인 내용 |
+| --- | --- |
+| `final_response_complete` | 화면에 표시하는 최종 응답 완료 여부, 생성 한도 도달과 정상 완료의 구분 |
+| `json_valid` | JSON 객체와 중복 키, 다섯 필드, 자료형과 허용값 및 빈 설명 검사 |
+| `trading_valid` | 가상 문항의 허용 결정, 의견과 비율, 잔액 및 최소 주문금액 검사 |
+| `error_message` | CSV에 저장하는 호출 오류와 응답 검사 실패의 구체적 사유, 화면에서는 errors로 표시 |
 
-```powershell
-uv run --frozen python -m unittest discover -s tests -t .
-```
+정상 JSON이어도 가상 정답이나 거래 규칙을 어기면 거래 검사는 실패할 수 있다. 형식이 잘못되어 결정을 검사할 수 없으면 거래 검사 결과는 판정 불가이며 CSV에서는 공란이다. 실패 응답도 원문과 검사 결과를 그대로 저장한다.
 
-실행 당시의 코드 원문과 설정은 SQLite에 저장되어 있으며 현재 코드와 구분한다. 문장을 다듬거나 보고서를 정리할 때도 실제 입력, 응답, 판정과 측정값은 유지한다. 새 조건의 결과는 새 실험 ID로 남기고 과거 결과와 합산하지 않는다.
+사실 설명의 의미와 완전성은 별도의 자동 점수로 만들지 않는다. 가상 문항의 기대 설명과 모델 응답을 대조해 기존 CSV 채점란에 작성한다. 과거 보고서의 자동 검사 횟수는 당시 코드 점검 이력이며 현재 실행에 필요한 별도 구성 요소가 아니다.
