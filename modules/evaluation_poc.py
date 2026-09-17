@@ -5,9 +5,19 @@
     1. 고정 사례와 설치 모델 확인
     2. 지시문, 모델 설정, 순서와 코드 원문의 사전 저장
     3. 시도 등록 후 단일 모델 호출 및 원본 저장
-    4. 응답 해제와 저장 원문의 재조회
+    4. 모델 해제 상태와 SQLite 저장 원문의 재조회
 
-실행 단위: 워밍업 2회, 본 비교 52회, 별도 재실행 1회
+실행 구성:
+    - 기본 비추론: 영문 40회와 한국어 12회
+    - 기본 추론: 영문 10문항, 모델별 1회 또는 2회, 생성 한도별 계획
+    - 권장 설정: 비추론과 추론 각각 영문 20회, 모델별 10회
+    - 별도 기록: W00 워밍업, Q08 응답 완료 점검, Q06 재실행
+
+역할 분담:
+    - 실제 HTTP 호출과 측정: evaluation_local.py
+    - 형식과 거래 제한 검사: evaluate_response.py
+    - 계획과 응답 저장: evaluation_storage.py
+    - 설명의 의미 검토와 보고서: evaluation_review.py, evaluation_report.py
 """
 
 import argparse
@@ -23,19 +33,45 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from .data_evaluation_cases import _to_json
+from .json_utils import _to_json
 from .evaluate_response import evaluate_case_response
 from .evaluation_local import build_ollama_request, call_ollama, get_ollama_info
-from .evaluation_prompt import get_response_schema
+from .response_schema import get_response_schema
 from .evaluation_storage import begin_attempt, finish_attempt, load_attempts, load_experiment, save_experiment
 
 
-# 기존 한국어 시험과 별도 등록하는 PoC, 모든 모델에 같은 명시적 설정 적용
+# 기본 설정 비교의 공통 후보와 샘플링 값, 권장 설정은 별도 계획 함수에서 지정
 MODELS = ("qwen3.5:9b", "gemma4:12b")
 OPTIONS = {"presence_penalty": 0.0, "frequency_penalty": 0.0,
            "repeat_penalty": 1.0, "top_k": 40, "top_p": 0.95, "min_p": 0.0}
 ROOT = Path(__file__).resolve().parent.parent
 CASE_PATH = Path(__file__).with_name("poc_cases.json")
+
+# 새 계획에 보존할 실행 코드와 검사용 코드, 과거 SQLite의 소스 원문과 별도 관리
+SOURCE_FILES = (
+    "modules/evaluation_poc.py", "modules/poc_cases.json",
+    "modules/evaluation_local.py", "modules/evaluation_storage.py",
+    "modules/response_schema.py", "modules/evaluate_response.py",
+    "modules/json_utils.py", "tests/__init__.py", "tests/test_evaluation_poc.py", "uv.lock",
+)
+
+
+def _source_snapshot():
+    """
+    새 실험 계획에 사용할 현재 소스 원문과 파일별 SHA-256 생성
+
+    입력: 저장소 루트 기준 SOURCE_FILES의 명시적 파일 목록
+    반환: source_hashes와 source_contents를 가진 사전
+    처리: 파일별 바이트를 한 번 읽은 뒤 해시 계산과 UTF-8 원문 보존
+    이유: 파일 이름 변경 이후에도 과거 입력과 설정으로 새 계획을 생성할 수 있는 구성
+    보존: 부모 계획의 옛 경로, 코드 원문과 해시 변경 없음
+    제한: 기존 계획의 이어 실행에 적용되는 코드 해시 검사 우회 없음
+    """
+    sources = {name: (ROOT / name).read_bytes() for name in SOURCE_FILES}
+    return {
+        "source_hashes": {name: hashlib.sha256(raw).hexdigest() for name, raw in sources.items()},
+        "source_contents": {name: raw.decode("utf-8") for name, raw in sources.items()},
+    }
 
 
 def _hash(value):
@@ -179,10 +215,7 @@ def prepare(kind, db_path="data/evaluation.db"):
                                      "model": model, "repeat": repeat,
                                      "phase": "warmup" if kind == "warmup" else "main"})
     # ------------------------------ * 실행 당시 코드 원문과 설정의 보존 * ------------------------------
-    files = ["modules/evaluation_poc.py", "modules/poc_cases.json",
-             "modules/evaluation_local.py", "modules/evaluation_storage.py",
-             "modules/evaluation_prompt.py", "modules/evaluate_response.py",
-             "modules/data_evaluation_cases.py", "modules/validate_evaluation_poc.py", "uv.lock"]
+
     config = {"evaluation_kind": "poc_" + kind, "models": models,
               "instructions": source["instructions"], "response_schema": get_response_schema(),
               "schedule": schedule, "automatic_retries": 0,
@@ -197,8 +230,7 @@ def prepare(kind, db_path="data/evaluation.db"):
 
               "ollama_version": get_ollama_info("/api/version")["version"],
               "environment": environment_snapshot(),
-              "source_hashes": {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in files},
-              "source_contents": {p: (ROOT / p).read_text(encoding="utf-8") for p in files}}
+              **_source_snapshot()}
     experiment_id = "poc-" + kind + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     save_experiment(experiment_id, config, {"cases": cases}, db_path)
     return experiment_id
@@ -384,9 +416,7 @@ def prepare_mode(local_experiment_id, *, warmup=False, num_predict=None, repeat_
             config["acceptance"] = {"reference_twenty_call_criteria": original["config"].get("acceptance"),
                 "status": "10문항 1회 비교, 20회 통과 기준의 최종 판정 없음"}
     config["schedule"] = schedule
-    files = list(config["source_hashes"])
-    config["source_hashes"] = {p: hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in files}
-    config["source_contents"] = {p: (ROOT/p).read_text(encoding="utf-8") for p in files}
+    config.update(_source_snapshot())
     # 추론 플래그와 생성 길이 이외의 지시문, 자료, 모델과 옵션 변경 방지
     if not warmup:
         proposed = {"config": config, "dataset": {"cases": cases}}
@@ -471,9 +501,7 @@ def prepare_completion_check(local_experiment_id, db_path="data/evaluation.db"):
         if tags.get(name, {}).get("digest") != model["digest"]:
             raise ValueError("기준 실험과 설치 모델 식별값 불일치")
     config["ollama_version"] = get_ollama_info("/api/version")["version"]
-    files = list(config["source_hashes"])
-    config["source_hashes"] = {p: hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in files}
-    config["source_contents"] = {p: (ROOT/p).read_text(encoding="utf-8") for p in files}
+    config.update(_source_snapshot())
     proposed = {"config": config, "dataset": {"cases": [case]}}
     for slot in config["schedule"]:
         before, after = build_request(original, slot), build_request(proposed, slot)
@@ -536,9 +564,7 @@ def prepare_recommended_main(completion_experiment_id, db_path="data/evaluation.
             raise ValueError("대표 문항에서 확인한 실제 요청 설정 변경")
     if config["models"] != reference["config"]["models"]:
         raise ValueError("대표 시험의 모델별 실행 설정 변경")
-    files = list(config["source_hashes"])
-    config["source_hashes"] = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in files}
-    config["source_contents"] = {p: (ROOT / p).read_text(encoding="utf-8") for p in files}
+    config.update(_source_snapshot())
     eid = "poc-main-recommended-reasoning-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     save_experiment(eid, config, {"cases": cases}, db_path)
     return eid
@@ -623,9 +649,7 @@ def prepare_best_practices(completion_experiment_id, *, thinking, warmup=False,
             old = build_request(baseline, slot)
             if request["messages"] != old["messages"] or request["format"] != old["format"]:
                 raise ValueError("기존 입력, 지시문 또는 응답 형식 변경")
-    files = list(config["source_hashes"])
-    config["source_hashes"] = {f: hashlib.sha256((ROOT/f).read_bytes()).hexdigest() for f in files}
-    config["source_contents"] = {f: (ROOT/f).read_text(encoding="utf-8") for f in files}
+    config.update(_source_snapshot())
     eid = f"poc-best-practices-{mode}-{phase}-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     save_experiment(eid, config, {"cases": cases}, db_path)
     return eid
@@ -661,9 +685,7 @@ def prepare_selfcheck(local_experiment_id, model="gemma4:12b", db_path="data/eva
                   acceptance={}, cloud_case_ids=[],
                   schedule=[{"slot_id": f"selfcheck/Q06/en/1/{model}", "case_id": "Q06",
                              "language": "en", "model": model, "repeat": 1, "phase": "extension"}])
-    files = list(config["source_hashes"])
-    config["source_hashes"] = {p: hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in files}
-    config["source_contents"] = {p: (ROOT/p).read_text(encoding="utf-8") for p in files}
+    config.update(_source_snapshot())
     eid = "poc-selfcheck-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     save_experiment(eid, config, {"cases": [case]}, db_path)
     return eid
@@ -673,9 +695,9 @@ def main():
     """
     계획 등록과 실제 호출을 명시적으로 구분하는 실행 진입점
 
-    입력: 명령행의 실험 ID와 경로 및 선택 옵션
-    처리: 명시한 준비, 실행 또는 조회 기능으로 분기
-    반환: 결과 또는 생성된 실험 ID의 JSON 출력
+    입력: 준비할 실험 종류 또는 실행할 실험 ID, 작업 DB와 조건별 옵션
+    처리: 입력과 설정의 계획 등록 또는 등록된 계획의 실제 로컬 호출
+    출력: 새 계획의 ID 또는 이번 실행에서 새로 종료한 호출 수의 JSON 출력
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_id", nargs="?")

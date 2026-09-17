@@ -1,5 +1,5 @@
 """
-PoC local 코드의 자동 검사
+Ollama 요청, 스트림 처리와 자원 측정의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -13,7 +13,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from . import evaluation_local as local
+from modules import evaluation_local as local
 
 
 class _Connection:

@@ -202,9 +202,9 @@ def main():
     """
     새 모델 호출과 원본 수정 없이 선택한 결과를 별도 SQLite로 내보내는 명령
 
-    입력: 명령행의 실험 ID와 경로 및 선택 옵션
-    처리: 명시한 준비, 실행 또는 조회 기능으로 분기
-    반환: 결과 또는 생성된 실험 ID의 JSON 출력
+    입력: 내보낼 실험 ID 목록, 원본 DB와 새 출력 DB 경로
+    처리: 원본 무결성과 인증 정보 혼입 검사 후 선택 범위 복사
+    출력: 저장 경로, 기록 수, 파일 크기와 SHA-256의 JSON 출력
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_ids", nargs="+")

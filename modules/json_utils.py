@@ -10,7 +10,6 @@
 """
 
 import json
-# 실행 위치와 무관한 고정 사례 파일 조회를 위한 경로 처리
 
 
 def _to_json(value):

@@ -1,5 +1,5 @@
 """
-PoC poc 코드의 자동 검사
+실험 계획, 요청 구성과 실행 순서의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -11,31 +11,74 @@ PoC poc 코드의 자동 검사
 
 import copy
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from . import evaluation_poc as poc
-from .evaluation_local import build_ollama_request
-from .evaluation_storage import load_attempts, load_experiment
+from modules import evaluation_poc as poc
+from modules.evaluation_local import build_ollama_request
+from modules.evaluation_storage import load_attempts, load_experiment
 
 
 class PocExecutionTests(unittest.TestCase):
     """실제 모델을 호출하지 않는 요청, 고정 자료와 저장 중복 방지 검사"""
 
 
+    def test_source_snapshot_preserves_original_bytes_and_hash(self):
+        """
+        줄바꿈을 포함한 코드 원문과 저장 해시의 일치 확인
+
+        조건: 임시 파일의 CRLF 줄바꿈과 한글 주석 사용
+        검증: 저장한 원문을 UTF-8로 복원한 바이트와 파일 해시의 동일성
+        """
+        raw = "# 원문 보존 확인\r\nVALUE = 1\r\n".encode("utf-8")
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "source.py").write_bytes(raw)
+            with patch.object(poc, "ROOT", Path(folder)), \
+                 patch.object(poc, "SOURCE_FILES", ["source.py"]):
+                snapshot = poc._source_snapshot()
+        stored = snapshot["source_contents"]["source.py"].encode("utf-8")
+        self.assertEqual(stored, raw)
+        self.assertEqual(snapshot["source_hashes"]["source.py"], hashlib.sha256(stored).hexdigest())
+
+    def test_changed_source_blocks_execution_before_model_call(self):
+        """
+        계획 등록 이후 코드 변경 시 모델 호출 전 중단 확인
+
+        이유: 새 계획의 경로 갱신이 기존 계획의 해시 검사를 우회하지 않는지 확인
+        방식: 임시 소스의 내용 변경, 서버 조회와 실제 호출의 미발생 확인
+        """
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "source.py"
+            source.write_text("before", encoding="utf-8")
+            expected = hashlib.sha256(source.read_bytes()).hexdigest()
+            source.write_text("after", encoding="utf-8")
+            plan = {"config": {"evaluation_kind": "poc_main", "source_hashes": {"source.py": expected}}}
+            with patch.object(poc, "ROOT", Path(folder)), \
+                 patch.object(poc, "load_experiment", return_value=plan), \
+                 patch.object(poc, "get_ollama_info") as info, \
+                 patch.object(poc, "call_ollama") as call:
+                with self.assertRaisesRegex(ValueError, "확정 후 코드 변경"):
+                    poc.run("frozen-plan")
+                info.assert_not_called()
+                call.assert_not_called()
+
     def test_selfcheck_keeps_reference_input_and_single_call_scope(self):
         """
-        본 비교 자료와 설정을 보존한 Q06 단일 재실행 계획, 실행 중 부모 계획의 거부 확인
+        옛 파일명이 저장된 계획에서 Q06 재실행 준비, 입력과 부모 기록의 보존 확인
         """
         cases = poc.load_cases()["cases"]
         reference = next(c for c in cases if c["case_id"]=="Q06" and c["language"]=="en")
         original = {"config_hash":"original-config", "dataset_hash":"original-data",
                     "dataset":{"cases":cases}, "config":{
                         "evaluation_kind":"poc_main", "models":{"gemma4:12b":{"digest":"fixed", "num_ctx":8192}},
-                        "schedule":[{"slot_id":"one"}], "source_hashes":{"modules/evaluation_poc.py":"old"},
-                        "source_contents":{}, "instructions":{"en":"Original instruction"}}}
+                        "schedule":[{"slot_id":"one"}],
+                        "source_hashes":{"modules/data_evaluation_cases.py":"old-json",
+                                         "modules/evaluation_prompt.py":"old-schema",
+                                         "modules/validate_evaluation_poc.py":"old-test"},
+                        "source_contents":{"modules/data_evaluation_cases.py":"archived code"}, "instructions":{"en":"Original instruction"}}}
         before = copy.deepcopy(original)
         with patch.object(poc,"load_experiment",return_value=original), \
              patch.object(poc,"load_attempts",return_value=[{"status":"completed"}]), \
@@ -48,6 +91,10 @@ class PocExecutionTests(unittest.TestCase):
         self.assertEqual(args[2]["cases"][0],reference)
         self.assertEqual(args[1]["models"]["gemma4:12b"]["digest"],"fixed")
         self.assertEqual(args[1]["instructions"]["en"],"Original instruction")
+        self.assertEqual(set(args[1]["source_hashes"]), set(poc.SOURCE_FILES))
+        self.assertIn("modules/json_utils.py", args[1]["source_contents"])
+        self.assertIn("tests/test_evaluation_poc.py", args[1]["source_contents"])
+        # 새 경로의 사용과 부모 계획의 옛 원문 보존을 동시에 확인
         self.assertEqual(original,before)
         with patch.object(poc,"load_experiment",return_value=original), \
              patch.object(poc,"load_attempts",return_value=[{"status":"running"}]):

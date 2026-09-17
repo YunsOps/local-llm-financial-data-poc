@@ -15,7 +15,7 @@ import json
 # 주문 금액의 경계값에서 이진 부동소수점 오차를 피하기 위한 십진수 계산
 from decimal import Decimal, localcontext
 
-from .data_evaluation_cases import _reject_constant, _unique_object
+from .json_utils import _reject_constant, _unique_object
 
 
 def _product(*values):
@@ -54,9 +54,6 @@ def evaluate_case_response(case, raw_response, dataset_hash):
         - 기대 사실과 검토 항목은 평가자 전용 자료이며 모델 전달 금지
         - 실제 주문, 모델 호출, DB 저장 및 환경 변수 접근 없음
 
-    입력: 고정 사례, 최종 응답 원문, 자료 식별 해시
-    반환: json_valid, schema_valid, trading_valid와 오류 및 검토 자료
-    효과: 네트워크와 DB 접근 없음, 원문 내용의 보정 없음
     """
     if not isinstance(raw_response, str):
         raise TypeError("최종 응답 원문은 문자열로 전달 필요")
@@ -70,7 +67,7 @@ def evaluate_case_response(case, raw_response, dataset_hash):
         "expected": copy.deepcopy(case["expected"]), "review_items": [],
     }
 
-    # ------------------------------ * 1. 사람 검토 항목 준비 * ------------------------------
+    # ------------------------------ * 1. 평가자 검토 항목 준비 * ------------------------------
     # 요구한 설명의 포함 여부와 의미 검토를 구분한 목록 구성
     # 같은 사실의 여러 검토 항목 중복을 사실 정확도의 분모로 사용하지 않는 기준
     for prefix, category, items in (

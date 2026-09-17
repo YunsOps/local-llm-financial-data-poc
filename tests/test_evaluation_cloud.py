@@ -1,5 +1,5 @@
 """
-PoC cloud 코드의 자동 검사
+Cloud 요청, 사용량과 비용 계산의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -12,8 +12,8 @@ PoC cloud 코드의 자동 검사
 import unittest
 from unittest.mock import patch
 
-from . import evaluation_cloud as cloud
-from .validate_evaluation_local import _Context
+from modules import evaluation_cloud as cloud
+from tests.test_evaluation_local import _Context
 
 
 class CloudEvaluationTests(unittest.TestCase):
@@ -135,10 +135,10 @@ class CloudEvaluationTests(unittest.TestCase):
         import tempfile
         from pathlib import Path
         from uuid import uuid4
-        from .evaluation_poc import load_cases
-        from .evaluation_prompt import get_response_schema
-        from .evaluation_storage import save_experiment, load_experiment, load_attempts
-        from .data_evaluation_cases import _to_json
+        from modules.evaluation_poc import load_cases
+        from modules.response_schema import get_response_schema
+        from modules.evaluation_storage import save_experiment, load_experiment, load_attempts
+        from modules.json_utils import _to_json
 
         source = load_cases()
         config = {"evaluation_kind": "poc_main", "cloud_case_ids": source["cloud_case_ids"],

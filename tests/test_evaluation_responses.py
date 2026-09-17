@@ -1,5 +1,5 @@
 """
-PoC responses 코드의 자동 검사
+응답 형식과 거래 제한의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -13,8 +13,8 @@ import copy
 import json
 import unittest
 
-from .evaluation_poc import load_cases
-from .evaluate_response import evaluate_case_response
+from modules.evaluation_poc import load_cases
+from modules.evaluate_response import evaluate_case_response
 
 
 class ResponseTests(unittest.TestCase):

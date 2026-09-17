@@ -128,9 +128,6 @@ def reuse_identical_review(experiment_id, source_attempt_id, target_attempt_id, 
     return save_review(target_attempt_id, reviewer, review, db_path)
 
 
-# 오류 회고에 미리 넣은 주장별 대조 기준, 모델 입력과 별도로 유지하는 평가 자료
-
-
 def record_thinking_review(experiment_id, attempt_id, findings, *,
                            reviewer="Codex, 추론 원문과 최종 답변 대조", db_path="data/evaluation.db"):
     """

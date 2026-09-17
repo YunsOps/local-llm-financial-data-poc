@@ -1,5 +1,5 @@
 """
-PoC export 코드의 자동 검사
+SQLite 내보내기와 원본 보존의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -18,8 +18,8 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from .evaluation_export import export_experiments
-from .evaluation_storage import save_experiment, begin_attempt, finish_attempt, load_attempts, load_experiment
+from modules.evaluation_export import export_experiments
+from modules.evaluation_storage import save_experiment, begin_attempt, finish_attempt, load_attempts, load_experiment
 
 
 class ExportTests(unittest.TestCase):

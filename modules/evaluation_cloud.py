@@ -24,10 +24,11 @@ from uuid import uuid4
 
 from dotenv import dotenv_values
 
-from .data_evaluation_cases import _to_json
+from .json_utils import _to_json
 
 
 LUNA_MODEL = "gpt-5.6-luna"
+# 시험 당시 확인한 단가의 보존, 현재 청구 금액이나 최신 가격의 자동 조회 없음
 LUNA_PRICING = {
     "checked_at": "2026-09-15",
     "source": "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
@@ -311,8 +312,9 @@ def prepare_poc_cloud(local_experiment_id, db_path="data/evaluation.db"):
                  "repeat": 1, "phase": "main"} for c in cases]
     root = Path(__file__).resolve().parent.parent
     sources = ["modules/evaluation_cloud.py", "modules/evaluation_storage.py",
-               "modules/evaluate_response.py", "modules/data_evaluation_cases.py",
-               "modules/validate_evaluation_cloud.py", "uv.lock"]
+               "modules/evaluate_response.py", "modules/json_utils.py",
+               "tests/__init__.py", "tests/test_evaluation_cloud.py",
+               "tests/test_evaluation_local.py", "uv.lock"]
     config = {
         "evaluation_kind": "poc_cloud", "parent_local_experiment_id": local_experiment_id,
         "parent_config_hash": local["config_hash"], "parent_dataset_hash": local["dataset_hash"],
@@ -410,9 +412,9 @@ def main():
     """
     Cloud 계획 등록과 유료 실행을 별도 명령으로 구분하는 진입점
 
-    입력: 명령행의 실험 ID와 경로 및 선택 옵션
-    처리: 명시한 준비, 실행 또는 조회 기능으로 분기
-    반환: 결과 또는 생성된 실험 ID의 JSON 출력
+    입력: 기준 로컬 실험 ID 또는 실행할 Cloud 실험 ID, 작업 DB 경로
+    처리: 공통 다섯 문항의 계획 등록 또는 등록된 계획의 유료 API 호출
+    출력: 새 계획 ID 또는 이번 실행에서 종료한 호출 수의 JSON 출력
     """
     import argparse
     parser = argparse.ArgumentParser()

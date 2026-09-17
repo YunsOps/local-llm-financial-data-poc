@@ -23,7 +23,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from .data_evaluation_cases import _reject_constant, _unique_object, _to_json
+from .json_utils import _reject_constant, _unique_object, _to_json
 
 
 # 로컬 서버만 사용하는 평가 경로, 실제 주문과 외부 유료 API 호출 제외
@@ -155,14 +155,14 @@ def build_ollama_request(model, messages, *, num_ctx=32768, num_predict=2048,
 
     입력: 모델, 대화와 문맥 및 생성 설정
     반환: 호출 전 저장과 실제 전송에 공통 사용할 본문
-    주의: 범용 기본 문맥값과 달리 이번 PoC에서는 num_ctx=8192 명시
+    설정: 범용 기본 문맥값과 실험별 문맥값의 구분, 저장된 계획의 num_ctx 적용
     제한: 추가 옵션으로 문맥과 생성 한도 등의 덮어쓰기 차단
     """
     payload = {"model": model, "messages": messages, "stream": True, "keep_alive": "1m",
                "truncate": False, "shift": False,
                "options": {"num_ctx": num_ctx, "num_predict": num_predict,
                            "temperature": temperature, "seed": 42}}
-    # PoC의 반복 억제 및 표본 선택 설정 명시, 기존 호출의 기본 동작 유지
+    # 실험 계획에서 정한 반복 억제와 토큰 선택 설정의 명시적 전달
     # 문맥 크기와 생성 한도 등을 extra_options로 우회 변경하지 않는 제한
     if extra_options is not None:
         bounds = {"presence_penalty": (-2, 2), "frequency_penalty": (-2, 2),

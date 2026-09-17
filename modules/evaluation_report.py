@@ -8,6 +8,17 @@ SQLite 원본의 PoC 집계와 Markdown 보고서 작성
     - 필수 사실 충족률과 추가 오류, 형식 준수의 별도 표시
 
 입력: 보존된 실험 ID와 DB 경로, 추가 모델 호출 없음
+
+함수 구성:
+    - _summarize_group: 완료 여부, 시간, 토큰과 자원의 공통 통계
+    - summarize_poc: 저장된 항목별 검토 점수를 모델과 언어별로 집계
+    - summarize_modes: 동일 입력의 기본 비추론과 추론 조건 대조
+    - write_poc_report: 한 실험의 입력, 응답과 판정 근거 보고서
+    - write_mode_report, write_budget_report: 모드와 생성 한도별 비교 보고서
+    - write_completion_report: 대표 문항의 최종 응답 완료 점검 보고서
+    - write_best_practices_report: 권장 설정의 두 모드 비교 보고서
+
+원칙: 저장된 점수의 집계만 수행, 설명의 의미 재판정과 과거 점수 수정 없음
 """
 
 import argparse
@@ -1131,9 +1142,10 @@ def main():
     """
     PoC 집계 또는 새 Markdown 생성, 모델 호출과 DB 수정 없는 조회
 
-    입력: 명령행의 실험 ID와 경로 및 선택 옵션
-    처리: 명시한 준비, 실행 또는 조회 기능으로 분기
-    반환: 결과 또는 생성된 실험 ID의 JSON 출력
+    입력: 실험 ID, 원본 DB와 선택적인 비교 실험 ID 및 Markdown 경로
+    처리: 단일 실험 집계 또는 설정별 비교 보고서 생성으로 분기
+    출력: 집계 결과의 JSON, 경로 지정 시 Markdown 보고서 저장
+    구분: 저장된 검토 점수의 집계이며 새로운 의미 채점이나 모델 호출 없음
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_id")

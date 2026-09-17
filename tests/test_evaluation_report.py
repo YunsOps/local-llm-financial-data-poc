@@ -1,5 +1,5 @@
 """
-PoC report 코드의 자동 검사
+점수, 시간과 자원 집계 및 보고서의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -12,7 +12,7 @@ PoC report 코드의 자동 검사
 import unittest
 from unittest.mock import patch
 
-from .evaluation_report import _distribution, _summarize_group
+from modules.evaluation_report import _distribution, _summarize_group
 
 
 def _attempt(status="completed", schema=True, cost=None, review=None):
@@ -37,8 +37,8 @@ class ReportTests(unittest.TestCase):
         """
         영문과 한국어의 집계 분리, 미완료와 미검토를 구분한 품질 분모 확인
         """
-        from .evaluation_report import summarize_poc
-        from .data_evaluation_cases import _to_json
+        from modules.evaluation_report import summarize_poc
+        from modules.json_utils import _to_json
         instructions = {"en": "English", "ko": "Korean"}
         cases = [{"case_id": "Q03", "language": lang, "input": {}, "input_hash": lang}
                  for lang in ("en", "ko")]
@@ -96,7 +96,7 @@ class ReportTests(unittest.TestCase):
         점검 대상: 요청량 초과 생성, 빈 최종 답변, 유효 JSON만의 응답 시간
         검증 방식: 실제 호출이 없는 가상 기록, 미완료 시도의 시간 집계 분리
         """
-        from .evaluation_report import summarize_modes
+        from modules.evaluation_report import summarize_modes
         import copy
         config = {"models": {"m": {"timeout": 300, "num_predict": 2048}}}
         first = _attempt()
@@ -139,7 +139,7 @@ class ReportTests(unittest.TestCase):
         """
         import tempfile
         from pathlib import Path
-        from .evaluation_report import write_best_practices_report
+        from modules.evaluation_report import write_best_practices_report
         plan = {"config_hash": "c", "dataset_hash": "d", "dataset": {"cases": []},
                 "config": {"environment": {}, "settings_provenance": {}, "source_hashes": {},
                            "models": {"m": {"temperature": 1, "num_ctx": 32768,
@@ -243,7 +243,7 @@ class ReportTests(unittest.TestCase):
 
         요청 모델의 적재량 선택, 다른 모델 및 GPU 전체 사용량과의 혼합 방지 확인
         """
-        from .evaluation_report import _loaded_mib
+        from modules.evaluation_report import _loaded_mib
         record = {"request": {"model": "chosen"},
                   "peak_gpu_used_mib": 12000,
                   "loaded_models": {"models": [

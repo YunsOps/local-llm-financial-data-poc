@@ -1,5 +1,5 @@
 """
-PoC review 코드의 자동 검사
+검토 인용, 판정 근거와 원본 연결의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -13,8 +13,8 @@ import copy
 import unittest
 from unittest.mock import patch
 
-from .evaluation_poc import load_cases
-from .evaluation_review import record_required_review, reuse_identical_review, record_thinking_review
+from modules.evaluation_poc import load_cases
+from modules.evaluation_review import record_required_review, reuse_identical_review, record_thinking_review
 
 
 class ReviewTests(unittest.TestCase):

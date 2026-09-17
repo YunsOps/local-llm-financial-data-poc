@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from .data_evaluation_cases import _to_json, _reject_constant, _unique_object
+from .json_utils import _to_json, _reject_constant, _unique_object
 
 
 def _hash(value):
@@ -50,7 +50,7 @@ def _database(db_path):
     구성:
         - 실험별 고정 자료와 설정의 보존
         - 호출 전 시도 등록, 중단 후 같은 시도의 무단 재실행 방지
-        - 기존 후보 점검 원문 표의 재사용, 기존 자료 삭제 없음
+        - 평가용 세 테이블의 존재 확인과 최초 생성, 기존 자료 삭제 없음
         - 입력 등록과 완료 기록의 트랜잭션 적용
 
     입력: SQLite 파일 경로

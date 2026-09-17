@@ -1,5 +1,5 @@
 """
-PoC storage 코드의 자동 검사
+실험 계획과 호출 기록의 저장의 자동 검사
 
 검사 방식:
     - 가상 입력과 임시 DB 또는 대체 응답 사용
@@ -18,8 +18,8 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 
-from . import evaluation_storage as storage
-from .evaluation_poc import load_cases
+from modules import evaluation_storage as storage
+from modules.evaluation_poc import load_cases
 
 
 class EvaluationStorageTests(unittest.TestCase):

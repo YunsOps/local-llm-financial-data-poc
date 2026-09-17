@@ -153,14 +153,16 @@ local-llm-financial-data-poc/
 │   ├── evaluation_poc.py             # 로컬 실험 계획 등록과 실행
 │   ├── evaluation_local.py           # Ollama 호출, 시간과 GPU 측정, 모델 해제
 │   ├── evaluation_cloud.py           # Luna 호출과 사용량 및 비용 기록
-│   ├── evaluation_prompt.py          # 공통 JSON Schema
+│   ├── response_schema.py            # 공통 JSON Schema
 │   ├── evaluate_response.py          # 형식 및 거래 제한 검사
 │   ├── evaluation_review.py          # 최종 답변과 추론의 근거를 연결한 검토 저장
 │   ├── evaluation_storage.py         # 실험, 호출과 평가 기록의 SQLite 저장
 │   ├── evaluation_report.py          # 집계와 조건별 보고서 생성
 │   ├── evaluation_export.py          # 선택한 실험을 별도 SQLite로 내보내기
-│   ├── data_evaluation_cases.py      # JSON 직렬화와 엄격한 파싱
-│   └── validate_evaluation_*.py      # 실제 모델 및 유료 API 없는 코드 검사
+│   └── json_utils.py                 # JSON 직렬화와 엄격한 파싱
+├── tests/
+│   ├── __init__.py                   # 검사 패키지와 공통 대체 객체의 가져오기 지원
+│   └── test_evaluation_*.py          # 8개 영역의 자동 검사, 실제 모델 및 유료 API 호출 없음
 ├── data/
 │   └── poc-submission-20260915.sqlite # 9월 15~16일 원본을 보존한 제출 DB
 ├── reports/                         # 상세 보고서 8개와 읽는 순서
@@ -170,6 +172,20 @@ local-llm-financial-data-poc/
 ```
 
 현재 실행 경로는 **문항 선택 → 계획과 설정 저장 → 모델 호출 및 측정 → 형식과 거래 제한 검사 → 응답 저장 → 근거를 대조한 검토 → 보고서 집계**이다.
+
+`modules/`에는 실행과 평가에 필요한 Python 파일 10개와 문항 JSON 1개를 두고, 자동 검사 8개 파일은 `tests/`에서 관리한다. 실제 모델 호출은 `evaluation_poc.py` 또는 `evaluation_cloud.py`에서 시작한다. `tests/`의 대체 응답은 검사에만 사용하며, 모델 요청의 입력으로 전달하지 않는다.
+
+`poc_cases.json`은 모델에 전달할 지시문과 입력, 평가자 전용 정답을 함께 보관한다. 실행기는 이 중 지시문과 입력만 요청에 넣는다. `response_schema.py`는 반환할 다섯 필드의 구조를 정의하고, `evaluate_response.py`는 실제 응답의 형식과 거래 규칙을 검사한다. 설명의 옳고 그름은 검토자가 판정하고, `evaluation_review.py`는 인용문과 원본 경로를 확인해 그 판정을 저장한다.
+
+과거 보고서와 SQLite의 실행 코드 원문에는 당시 파일 이름을 유지했다. 현재 대응 경로는 다음과 같다.
+
+| 과거 경로 | 현재 경로 |
+| --- | --- |
+| `modules/data_evaluation_cases.py` | `modules/json_utils.py` |
+| `modules/evaluation_prompt.py` | `modules/response_schema.py` |
+| `modules/validate_evaluation_*.py` | `tests/test_evaluation_*.py` |
+
+과거 계획을 바탕으로 **새 계획을 만들면** 당시 입력과 설정을 가져오고 현재 코드 원문과 해시를 새로 저장한다. 기존 계획을 그대로 실행할 때 적용되는 코드 변경 검사는 유지하므로, 이전 실험을 재현할 때에는 아래 준비 명령으로 새 ID를 생성한다.
 
 - 유지한 기능: 고정 문항, 로컬 및 Luna 호출, 조건별 실행 계획, 측정, 검토와 보고서
 - 이후 반영한 기능: 기본 추론의 생성 한도별 계획, 대표 문항 완료 점검, 권장 설정 전체 문항 비교, 추론 원문 검토 및 비교 보고서
@@ -303,11 +319,10 @@ uv run --frozen python -m modules.evaluation_export <new_experiment_id> --output
 
 ## 코드 검사와 보존 원칙
 
-실제 모델과 유료 API를 호출하지 않고 요청 구성, 검산, 중복 실행 방지, 저장, 검토 근거, 집계와 내보내기를 검사한다. 2026-09-17 기준 **66개 검사 통과**, 제출 SQLite 무결성 검사 통과를 확인했다.
+실제 모델과 유료 API를 호출하지 않고 요청 구성, 검산, 중복 실행 방지, 저장, 검토 근거, 집계와 내보내기를 검사한다. 2026-09-17 기준 **68개 검사 통과**, 제출 SQLite 무결성 검사 통과를 확인했다.
 
 ```powershell
-$checks = Get-ChildItem modules/validate_evaluation_*.py | ForEach-Object { "modules.$($_.BaseName)" }
-uv run --frozen python -m unittest @checks
+uv run --frozen python -m unittest discover -s tests -t .
 ```
 
 실행 당시의 코드 원문과 설정은 SQLite에 저장되어 있으며 현재 코드와 구분한다. 문장을 다듬거나 보고서를 정리할 때도 실제 입력, 응답, 판정과 측정값은 유지한다. 새 조건의 결과는 새 실험 ID로 남기고 과거 결과와 합산하지 않는다.
