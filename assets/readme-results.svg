@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="444" viewBox="0 0 1040 444" role="img" aria-labelledby="title desc">
+  <title id="title">설명 충족률이 높아진 만큼 응답 시간도 증가</title>
+  <desc id="desc">기본 비추론의 Qwen과 Gemma는 각각 60.0%, 83.3%와 응답 시간 중앙값 12.7초, 14.7초. 권장 비추론은 56.7%, 73.3%와 19.0초, 21.2초. 권장 추론은 90.0%, 93.3%와 186.8초, 257.7초. 기본 비추론은 모델당 20응답, 권장 설정은 조건별 10응답으로 반복 수가 다름.</desc>
+  <rect width="1040" height="444" rx="16" fill="#f6f8fb"/>
+  <g font-family="Malgun Gothic,Apple SD Gothic Neo,Arial,sans-serif" fill="#192d40">
+    <text x="28" y="40" font-size="22" font-weight="700">필수 설명 항목 충족률</text>
+    <text x="28" y="66" font-size="14" fill="#495e72">최종 답변에서 요구한 내용을 빠짐없이 설명한 항목의 비율</text>
+    <text x="721" y="40" font-size="17" font-weight="700">점수</text>
+    <text x="876" y="40" font-size="17" font-weight="700">시간 중앙값</text>
+    <text x="292" y="98" font-size="14">0%</text>
+    <text x="485" y="98" font-size="14">50%</text>
+    <text x="675" y="98" font-size="14">100%</text>
+    <path d="M292 109V369M496 109V369M700 109V369" stroke="#d7e0e8" stroke-width="1"/>
+    <text x="28" y="146" font-size="19" font-weight="700">기본 비추론</text>
+    <text x="28" y="171" font-size="14" fill="#495e72">모델당 20응답</text>
+    <text x="204" y="137" font-size="17">Qwen</text>
+    <rect x="292" y="120" width="244.8" height="23" rx="3" fill="#236cb3"/>
+    <text x="548" y="137" font-size="16">60.0%</text>
+    <text x="721" y="137" font-size="17">36 / 60</text>
+    <text x="876" y="137" font-size="18">12.7초</text>
+    <text x="204" y="171" font-size="17">Gemma</text>
+    <rect x="292" y="154" width="340" height="23" rx="3" fill="#16806f"/>
+    <text x="643" y="171" font-size="16">83.3%</text>
+    <text x="721" y="171" font-size="17">50 / 60</text>
+    <text x="876" y="171" font-size="18">14.7초</text>
+    <text x="28" y="237" font-size="19" font-weight="700">권장 비추론</text>
+    <text x="28" y="262" font-size="14" fill="#495e72">모델당 10응답</text>
+    <text x="204" y="228" font-size="17">Qwen</text>
+    <rect x="292" y="211" width="231.2" height="23" rx="3" fill="#236cb3"/>
+    <text x="534" y="228" font-size="16">56.7%</text>
+    <text x="721" y="228" font-size="17">17 / 30</text>
+    <text x="876" y="228" font-size="18">19.0초</text>
+    <text x="204" y="262" font-size="17">Gemma</text>
+    <rect x="292" y="245" width="299.2" height="23" rx="3" fill="#16806f"/>
+    <text x="603" y="262" font-size="16">73.3%</text>
+    <text x="721" y="262" font-size="17">22 / 30</text>
+    <text x="876" y="262" font-size="18">21.2초</text>
+    <text x="28" y="328" font-size="19" font-weight="700">권장 추론</text>
+    <text x="28" y="353" font-size="14" fill="#495e72">모델당 10응답</text>
+    <text x="204" y="319" font-size="17">Qwen</text>
+    <rect x="292" y="302" width="367.2" height="23" rx="3" fill="#236cb3"/>
+    <text x="648" y="319" font-size="16" text-anchor="end" fill="#ffffff">90.0%</text>
+    <text x="721" y="319" font-size="17" font-weight="700">27 / 30</text>
+    <text x="876" y="319" font-size="18" font-weight="700">186.8초</text>
+    <text x="204" y="353" font-size="17">Gemma</text>
+    <rect x="292" y="336" width="380.8" height="23" rx="3" fill="#16806f"/>
+    <text x="661" y="353" font-size="16" text-anchor="end" fill="#ffffff">93.3%</text>
+    <text x="721" y="353" font-size="17" font-weight="700">28 / 30</text>
+    <text x="876" y="353" font-size="18" font-weight="700">257.7초</text>
+    <text x="28" y="404" font-size="15" fill="#495e72">모든 문장의 정확도나 매매 수익률을 나타내는 점수가 아님 · 원본 응답 및 판정 근거는 CSV에 보존</text>
+  </g>
+</svg>

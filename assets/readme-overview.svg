@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="360" viewBox="0 0 1040 360" role="img" aria-labelledby="title desc">
+  <title id="title">로컬 LLM은 숫자와 기록을 정확히 설명할 수 있을까?</title>
+  <desc id="desc">약 12GB GPU를 가진 개인 노트북에서 같은 가상 문항 10개를 Qwen과 Gemma에 제공하고, 출력 형식, 설명의 충족 여부와 시간 및 자원 사용량을 비교한 PoC.</desc>
+  <rect width="1040" height="360" rx="20" fill="#122132"/>
+  <g font-family="Malgun Gothic,Apple SD Gothic Neo,Arial,sans-serif">
+    <text x="38" y="40" font-size="14" letter-spacing="2" fill="#99b9d5">LOCAL LLM / FINANCIAL DATA / PoC</text>
+    <text x="38" y="86" font-size="30" font-weight="700" fill="#f2f6fa">로컬 LLM은 숫자와 기록을</text>
+    <text x="38" y="126" font-size="30" font-weight="700" fill="#f2f6fa">정확히 설명할 수 있을까?</text>
+    <text x="742" y="89" font-size="24" font-weight="700" fill="#8cc9ff">약 12GB VRAM</text>
+    <text x="742" y="119" font-size="16" fill="#c0cfdd">개인 노트북에서 직접 확인</text>
+    <rect x="38" y="170" width="284" height="136" rx="12" fill="#20364b"/>
+    <text x="58" y="204" font-size="14" fill="#8cc9ff">01 / 같은 자료</text>
+    <text x="58" y="240" font-size="23" font-weight="700" fill="#f2f6fa">가상 문항 10개</text>
+    <text x="58" y="276" font-size="17" fill="#c0cfdd">잔액 · 시세 · 주문과 체결</text>
+    <path d="M334 238h24m-8-7 8 7-8 7" fill="none" stroke="#9cb1c4" stroke-width="2"/>
+    <rect x="370" y="170" width="284" height="136" rx="12" fill="#20364b"/>
+    <text x="390" y="204" font-size="14" fill="#8cc9ff">02 / 로컬 모델 비교</text>
+    <text x="390" y="240" font-size="23" font-weight="700" fill="#f2f6fa">Qwen + Gemma</text>
+    <text x="390" y="276" font-size="17" fill="#c0cfdd">설정과 추론 모드를 바꿔 실행</text>
+    <path d="M666 238h24m-8-7 8 7-8 7" fill="none" stroke="#9cb1c4" stroke-width="2"/>
+    <rect x="702" y="170" width="300" height="136" rx="12" fill="#20364b"/>
+    <text x="722" y="204" font-size="14" fill="#8cc9ff">03 / 응답을 대조</text>
+    <text x="722" y="240" font-size="23" font-weight="700" fill="#f2f6fa">형식과 내용, 실행 비용</text>
+    <text x="722" y="276" font-size="17" fill="#c0cfdd">필수 설명 · 과거 기록 · 시간과 자원</text>
+    <text x="38" y="336" font-size="15" fill="#c0cfdd">실제 매매 수익성 대신, 제공된 자료를 읽고 설명하는 능력 평가</text>
+  </g>
+</svg>

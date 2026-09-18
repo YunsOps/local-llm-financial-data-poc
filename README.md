@@ -1,78 +1,111 @@
 # local-llm-financial-data-poc
 
-**개인 노트북에서 실행한 로컬 LLM이 비트코인 시장과 가상 계좌 자료를 정확하게 설명할 수 있는지 확인하는 PoC이다.**
+![약 12GB GPU의 노트북에서 같은 가상 자료를 Qwen과 Gemma에 제공하고, 숫자와 기록의 설명 능력을 비교하는 프로젝트](assets/readme-overview.svg)
 
-외부 LLM API가 담당하던 자료 해석을 로컬 모델로 옮기려 했으나, 최종 답변을 완성하지 못하거나 수치와 출처를 잘못 설명하는 문제가 나타났다. 이에 실제 매매 구현보다 먼저 **같은 자료를 받은 모델의 설명, 출력 형식, 과거 거래 검토와 실행 자원**을 평가했다. 현재 코드는 자료 해석 능력을 확인하는 검증 프로그램이다.
+외부 LLM API가 하던 시장과 계좌 자료 해석을 개인 노트북으로 옮길 수 있을까? **주어진 수치와 과거 기록을 정확하게 설명하는지**부터 확인했다. 실제 주문과 매매 수익률은 평가하지 않았다.
 
-- 로컬 후보: **Qwen/Qwen3.5-9B**, **google/gemma-4-12B-it**
-- Cloud 비교: **OpenAI GPT-5.6 Luna**, `gpt-5.6-luna`, 비추론 5문항
-- 평가 대상: 입력 수치와 관측 시각, 잔액, 주문 및 체결, 손익에 대한 설명
-- 제외 범위: 미래 가격 예측, 실제 주문과 매매 수익률, 한국어 문체 품질
+[최종 보고서 읽기](reports/final_report.md) · [실험 집계표](reports/실험_집계.xlsx) · [응답과 채점 CSV](data/README.md)
 
-[최종 보고서](reports/final_report.md) · [문항과 채점 기준](modules/cases.json) · [실험별 CSV와 채점 근거](data/README.md)
+## 먼저, 무엇을 발견했나?
 
-## 핵심 결과
+![조건별 필수 설명 충족률과 응답 시간 중앙값. 기본 비추론은 Qwen 36/60점과 12.7초, Gemma 50/60점과 14.7초. 권장 비추론은 17/30점과 19.0초, 22/30점과 21.2초. 권장 추론은 27/30점과 186.8초, 28/30점과 257.7초](assets/readme-results.svg)
 
-같은 영문 10문항의 필수 사실 충족률을 비교했다. 점수는 요구한 설명을 완전하게 포함했는지 나타내며, 모델의 모든 문장에 대한 정확도나 입력 전체의 정보 손실률은 아니다.
+**권장 설정의 추론에서 설명 충족률은 높아졌지만, 응답 시간도 길어졌다.** 300초 안에 지정 JSON을 반환한 횟수는 Qwen 10/10회, Gemma 6/10회였다. 이 시간 조건에서는 Qwen을 후속 검토 후보로 선택했다.
 
-| 실행 조건 | Qwen | Gemma | 해석 |
-| --- | --- | --- | --- |
-| 기본 설정 비추론 | 36/60점, 60.0% · 중앙값 12.7초 | 50/60점, 83.3% · 중앙값 14.7초 | 빠르게 답했으나 두 후보 모두 사실 설명 90% 기준 미달 |
-| 기본 설정 추론 | 생성 한도 2,048과 4,096에서 최종 답변 미완료 | 생성 한도 2,048과 4,096에서 최종 답변 미완료 | 저장된 본 시험 43회 모두 길이 제한으로 종료 |
-| 권장 설정 비추론 | 17/30점, 56.7% · 중앙값 19.0초 | 22/30점, 73.3% · 중앙값 21.2초 | 권장 설정 적용만으로 오류와 누락이 해결되지는 않음 |
-| 권장 설정 추론 | **27/30점, 90.0% · 중앙값 186.8초** | **28/30점, 93.3% · 중앙값 257.7초** | 설명 충족률 개선과 함께 응답 시간 증가 |
+기본 비추론은 모델당 20응답, 권장 설정은 조건별 10응답이다. 점수는 필수 설명 항목의 충족률이며 모든 문장의 정확도를 뜻하지 않는다. 여러 설정과 반복 수가 달라 **추론 기능 하나의 효과나 실제 도입 가능성을 확정한 결과는 아니다.**
 
-기본 비추론은 모델당 20응답, 권장 설정은 모델과 모드별 10응답이다. 분모가 다른 결과를 합산하지 않았다. 기본 추론의 최종 답변 미완료는 설명을 전부 틀렸다는 의미가 아니다.
+<details>
+<summary>최종 답변이 나오지 않은 조건과 외부 API 비교</summary>
 
-**300초 이내 응답이 필요하다면 Qwen 권장 설정 추론을 우선 검토한다.** 10회 모두 제한 내 지정 JSON을 반환했다. Gemma는 설명 점수가 1점 높지만 300초 내 반환은 6/10회였으므로, 응답 지연을 허용하는 경우의 비교 후보이다. 권장 설정 추론의 회고 점수는 Qwen 10/12, Gemma 11/12이며 전체 30점에 이미 포함된다.
+- **기본 설정 추론:** 생성 한도 2,048 또는 4,096에서 저장된 본 시험 43회 모두 최종 답변 미완료. 길이 제한 종료를 설명 내용 전체의 오류와 구분했다.
+- **과거 기록 검토:** 권장 추론의 Q07~Q10 점수는 Qwen 10/12, Gemma 11/12. 전체 30점에 포함된 부분집계이다.
+- **외부 API 비교:** OpenAI GPT-5.6 Luna 비추론에 공통 5문항을 한 번씩 제공해 15/15점, 평균 8.539초 기록. 로컬 전체 10문항과 같은 범위의 시험은 아니다.
+- **남은 한계:** 두 로컬 모델 모두 설명 누락과 부가 오류가 남았으며, 권장 설정의 반복 검증도 부족하다. 실제 자동매매 도입은 보류했다.
 
-두 모델 모두 설명 누락과 부가 주장 오류가 남았다. 권장 설정의 문항별 한 번 실행을 기존의 두 번 반복 통과 조건 충족으로 처리하지 않았으며, 실제 자동매매 도입을 승인한 결과도 아니다. 결과 해석과 대표적인 감점 사유는 [최종 보고서](reports/final_report.md)에 정리했으며, 개별 응답과 채점 근거는 [실험별 CSV](data/README.md)에서 확인할 수 있다.
+Luna 5회 비용은 당시 사용량과 단가 기준 $0.00375315, 평균 $0.00075063/회이다. 같은 분량을 24시간, 30일 호출한다고 가정하면 30분 간격은 약 **$1.08**, 1시간 간격은 약 **$0.54**이다. 비추론 결과의 환산값이며 세금, 환율과 로컬 전기요금은 포함하지 않았다.
 
-## 모델 선정과 실행 환경
+[Luna 호출 원본과 비용](data/gpt-5.6-luna_cloud-nonthinking-english_20260915-210424.csv) · [적용 단가와 계산 코드](modules/call_openai.py)
 
-공개 점수만으로 모델을 선정하지 않았다. 양자화 배포 크기와 Ollama 지원을 먼저 확인한 뒤, Artificial Analysis의 종합 지능 점수와 지시 준수, 긴 자료 활용 등의 지표를 참고했다. 당시 비교에서 Qwen은 긴 자료 활용, Gemma는 지시 준수에서 상대 강점을 보여 서로 다른 계열의 후보로 선정했다.
+</details>
 
-약 12GB라는 GPU 용량은 초기 선별 조건이며, 모델 파일 크기와 실제 실행 메모리는 다르다. 큰 문맥 창에서는 추가 메모리가 필요하며, 이번 권장 설정의 Qwen 실행에는 일부 CPU 분산 적재가 포함됐다. 공개 평가와 로컬 양자화 환경도 같지 않다.
+## 코드는 이 순서로 움직인다
 
-| 항목 | 시험 환경 |
-| --- | --- |
-| 장비 | ASUS ROG Zephyrus G14 GA403WR, Windows 11 Home 빌드 26200 |
-| CPU와 RAM | AMD Ryzen AI 9 HX 370, 12코어 24스레드, 설치 RAM 64GB |
-| GPU | NVIDIA GeForce RTX 5070 Ti Laptop GPU, 조회 용량 12,227MiB |
-| 실행 도구 | Python 3.12.13, Ollama 0.33.3 |
-| Python 주요 의존성 | ollama 0.6.2, openai 3.8.0, python-dotenv. 전체 버전은 uv.lock |
-| 설치 태그 | qwen3.5:9b, gemma4:12b |
-| 양자화 | 두 모델 모두 Q4_K_M |
-| 실행 방식 | 모델 하나씩 적재, 호출 후 해제, 자동 재시도 없음 |
+`main.py`가 아래 순서를 관리한다. **한 번의 호출을 저장한 다음, 다음 문항으로 넘어간다.**
 
-## 입력과 출력
+```mermaid
+flowchart LR
+    A["가상 문항<br/>cases.json"] --> B["지시문 + 입력<br/>prompt.py"]
+    B --> C["내 노트북<br/>call_ollama.py"]
+    B --> D["외부 API<br/>call_openai.py"]
+    C --> E["응답 검사<br/>validate_response.py"]
+    D --> E
+    E --> F["CSV 한 행 저장<br/>save_csv.py"]
+```
 
-실시간 시세 전체를 나열하는 대신 **정답을 직접 검산할 수 있는 가상 사례**를 구성했다. 예를 들어 손익 문항에는 체결량, 매수가, 평가 가격과 지급한 수수료를 제공한다. 자료 누락 문항은 일부 필드를 의도적으로 비워 판단 보류 여부를 확인한다.
+**로컬 경로는 Qwen 또는 Gemma, 외부 API 경로는 Luna를 호출한다.** 한 실행에서는 선택한 모델 하나만 사용한다. 로컬 실행이 외부 API를 자동으로 호출하지 않는다.
 
-| 입력 | 제공하는 내용 |
-| --- | --- |
-| as_of, data_notice | 기준 시점과 자료가 가상으로 구성됐다는 설명 |
-| market_input | 필요한 봉의 종가와 EMA, 거래량, 호가 및 각각의 시간 |
-| strategy_state | 가용 및 묶인 잔액, 이전 결정, 주문, 실제 체결과 손익 자료 |
-| trading_rules | 가상 수수료율 0.05%, 최소 주문금액 5,000원, 자료 누락 시 보류 규칙 |
-| required_observations | 해당 문항에서 반드시 설명해야 하는 세 가지 질문 |
+<details>
+<summary>각 파일과 함수가 하는 일</summary>
 
-EMA는 비교를 위해 주어진 값이며 모델에게 지표 재계산을 요구하지 않는다. 공포탐욕지수 68, Greed는 고정 보조 정보로 포함했다. 해당 지표의 예측력은 평가하지 않았다. 모델에는 공통 지시문과 input만 전달하고, expected와 rubric 등 정답 및 채점 자료는 전달하지 않는다.
-
-| 문항 | 검증할 상황 | 별도 비교 |
+| 읽는 순서 | 파일 | 핵심 역할 |
 | --- | --- | --- |
-| Q01 | 현금만 보유한 계좌, 봉 가격 비교와 과거 기록 없음 | Cloud |
-| Q02 | BTC만 보유한 계좌, 거래 가능 여부와 전량 매도금액 | — |
-| Q03 | 서로 다른 봉의 가격과 거래량, 자료별 시각 구분 | 한국어, Cloud |
-| Q04 | 가용 4,999원과 묶인 현금, 수수료 포함 최소 주문 조건 | — |
-| Q05 | UTC와 KST, 봉 종가와 이후 호가 구분 | — |
-| Q06 | 필수 시장 자료 누락, 남은 자료와 판단 제한 | 한국어, Cloud |
-| Q07 | 이전 모델 호출 실패와 실제 결정 및 거래의 구분 | — |
-| Q08 | 매수 체결 후 평가이익, 수수료와 미실현손익 | Cloud |
-| Q09 | 체결 없이 취소된 주문, 시장 상승률과 계좌 수익률 | — |
-| Q10 | 과거 설명의 숫자 비교 오류 정정, 체결과 손실 검산 | 한국어, Cloud |
+| 1 | [main.py](main.py) | `main()`에서 옵션 해석, `run_trial()`에서 호출·검사·저장 순서 관리 |
+| 2 | [cases.json](modules/cases.json) | 가상 입력과 평가용 정답, 문항별 세 가지 채점 기준 |
+| 3 | [prompt.py](modules/prompt.py) | `build_messages()`로 공통 지시문과 현재 입력 구성 |
+| 4 | [call_ollama.py](modules/call_ollama.py) | 로컬 응답 수신, 시간과 GPU 관측, 호출 후 모델 해제 |
+| 4 | [call_openai.py](modules/call_openai.py) | 외부 API 응답 수신, 시간과 사용량 기록, 비용 계산 |
+| 5 | [validate_response.py](modules/validate_response.py) | JSON 스키마 제공, 반환 형식과 계산 가능한 거래 규칙 검사 |
+| 6 | [save_csv.py](modules/save_csv.py) | 입력을 개별 열로 분리하고 호출 결과를 한 행으로 저장 |
 
-출력은 다음 다섯 필드의 JSON 객체 하나이다. 아래는 구조를 보여주는 예시이며 실제 응답이나 정답이 아니다.
+`main.py`에서는 **맨 아래 실행 시작 부분 → `main()` → `run_trial()`** 순서로 읽으면 된다.
+
+| main.py의 함수 | 역할 |
+| --- | --- |
+| `load_cases()` | 문항 파일 읽기, 중복 및 채점 근거 경로 검사 |
+| `trial_settings()` | 모델과 시험 조건에 맞는 실행 설정 구성 |
+| `_prepare_trial()` | 문항, 설정, 모델 설치 상태 또는 API 키 설정 확인 |
+| `_call_arguments()` | 현재 입력과 출력 스키마, 생성 설정을 호출 인자로 연결 |
+| `run_trial()` | 문항 반복, 호출, 자동 검사와 CSV 저장 |
+| `main()` | 터미널 옵션 해석과 실험 시작 |
+
+현재 모델 입력은 `case["input"]`이다. 이후 실제 수집 자료를 사용하려면 같은 입력 구조로 변환해 `build_messages()`에 전달할 수 있다. 현재 프로그램에 실시간 수집이나 주문 기능은 없다.
+
+</details>
+
+## Q01 하나만 따라가 보기
+
+**현금 100만 원, BTC 0개인 가상 계좌**를 모델에 제공한다. 5분봉 종가는 1억 원, EMA는 9,900만 원이다.
+
+```mermaid
+flowchart LR
+    A["Q01<br/>입력과 채점 자료"] --> B["input<br/>잔액, 시세, 필수 질문"]
+    B --> C["모델에 전달"]
+    A --> D["expected + rubric<br/>정답과 채점 기준"]
+    D --> E["검사와 검토에 사용<br/>모델에는 전달하지 않음"]
+```
+
+이 문항에서는 **잔액 구분**, **종가와 EMA의 비교 및 마감 시각**, **이전 결정·주문·체결의 유무**를 설명하도록 요구한다.
+
+<details>
+<summary>Q01에 실제로 들어가는 값과 출력 형식</summary>
+
+| 입력 | 실제 값 |
+| --- | --- |
+| 기준 시각 | 2026-09-15 01:00 UTC |
+| 가용 현금 / 묶인 현금 | 1,000,000원 / 0원 |
+| 가용 BTC / 묶인 BTC | 0 BTC / 0 BTC |
+| 5분봉 종가 / EMA | 100,000,000원 / 99,000,000원 |
+| 5분봉 마감 시각 | 2026-09-15 01:00 UTC |
+| 매수호가 / 매도호가 | 100,000,000원 / 100,100,000원 |
+| 공포탐욕지수 | 68, Greed — 고정된 보조값 |
+| 이전 결정 / 주문 / 체결 | 모두 없음 |
+| 가상 수수료율 / 최소 주문금액 | 0.05% / 5,000원 |
+
+위 표는 일부 입력을 발췌한 것이다. 시간봉과 일봉, 자료의 한계 안내 등 전체 원문은 [cases.json](modules/cases.json)에 있다. EMA는 제공된 비교값이며, 지표 계산이나 공포탐욕지수의 예측력은 시험하지 않았다.
+
+`prompt.py`는 공통 지시문을 `system` 메시지에, 현재 문항의 `input`을 JSON 문자열로 바꾸어 `user` 메시지에 넣는다. 각 요청은 이전 대화를 이어받지 않는다.
+
+출력은 다음 다섯 필드이다. 아래는 **구조 설명용 예시이며 실제 모델 응답이나 Q01 정답이 아니다.**
 
 ```json
 {
@@ -80,22 +113,145 @@ EMA는 비교를 위해 주어진 값이며 모델에게 지표 재계산을 요
   "buy_allocation_percentage": 0,
   "sell_allocation_percentage": 0,
   "reason": "Explain the required facts using the supplied sources.",
-  "reflection_log": "Check prior decisions against orders, fills and valuation."
+  "reflection_log": "Check prior decisions against orders and actual fills."
 }
 ```
 
-- decision: buy, sell, hold 중 하나
-- 두 allocation 필드: 0~100 숫자. 보류는 모두 0, 매수와 매도는 해당 방향만 양수
-- reason: 현재 의견과 필수 사실의 근거를 설명하는 영어 문자열
-- reflection_log: 과거 결정과 주문 및 체결 검토, 또는 기록이 없다는 설명을 담은 영어 문자열
+`decision`은 buy, sell, hold 중 하나이다. 비율은 0~100의 숫자이며 보류는 둘 다 0이다. 매수 또는 매도라면 해당 방향의 비율만 양수여야 한다. `reason`과 `reflection_log`는 비어 있지 않은 영어 문자열을 요구한다.
 
-필수 세 항목은 reason 또는 reflection_log의 최종 답변을 기준으로 평가한다. 추론 원문에만 있는 설명으로 최종 답변의 누락 점수를 보충하지 않는다. 요청에는 JSON Schema도 제공했으므로 형식 준수 결과는 자유 생성 조건의 성능과 구분한다.
+필수 세 항목은 이 두 설명 필드에 포함된 **최종 답변**을 보고 평가한다. 추론 원문에만 있는 내용으로 설명 누락을 보충하지 않는다.
 
-## 실험 조건과 평가 방법
+</details>
 
-### 네 가지 실행 조건
+## JSON이 맞아도 설명은 틀릴 수 있다
 
-| 조건 | 문맥 창 | 생성 한도 | temperature / top_p / top_k | 관측 제한 |
+```mermaid
+flowchart LR
+    A["모델의 최종 답변"] --> B["코드 검사"]
+    B --> C["형식<br/>5개 필드, 자료형, 허용값"]
+    B --> D["거래 규칙<br/>잔액, 비율, 최소 주문금액"]
+    A --> E["응답을 읽고 채점"]
+    E --> F["설명 내용<br/>수치, 출처, 시각, 계산 관계"]
+```
+
+문항마다 요구한 **3개 항목을 각각 1점 또는 0점**으로 평가한다. 필요한 설명을 모두 포함하면 1점, 틀리거나 일부를 빠뜨리면 0점이다. Q07~Q10의 과거 기록 검토 점수는 전체 점수에 포함된다.
+
+<details>
+<summary>누가 채점했으며, 통과 기준은 무엇인가?</summary>
+
+형식과 거래 규칙은 코드로 검사했다. 설명의 의미는 Codex가 입력 원문과 계산 결과에 대조해 판정했으며, 독립된 사람의 교차 검토를 수행한 결과는 아니다. CSV에 기대 설명, 응답 인용과 한국어 판정 근거를 보존했다. 새 호출의 설명 점수와 근거는 공란으로 두어 직접 검토할 수 있게 했다.
+
+사전에 정한 모델별 20회 평가 기준은 다음과 같다.
+
+- 300초 이내 지정 JSON 반환: **19/20회 이상**
+- 필수 설명 항목 충족: **54/60점 이상**
+- 확인 가능한 최종 결정의 중대한 거래 제한 위반: **0건**
+
+권장 설정은 모델과 모드별 10회만 실행했으므로 위의 20회 기준을 그대로 통과했다고 표현하지 않는다. 점수가 90% 이상이어도 반복 검증과 남은 오류를 별도로 확인해야 한다.
+
+시간 초과나 최종 답변 미완료는 0/3점으로 기록하되 내용 오류와 구분한다. 최종 결정을 해석할 수 없으면 거래 제한 판정은 불가이다. 아직 채점하지 않은 응답은 0점으로 바꾸지 않고 공란을 유지한다.
+
+</details>
+
+## 결과는 어디에 남나?
+
+```mermaid
+flowchart LR
+    A["모델 하나 + 조건 하나"] --> B["data 폴더의 CSV 한 개"]
+    C["호출 한 번"] --> D["입력, 출력, 측정값, 채점 칸"]
+    D --> B
+```
+
+**CSV 한 행이 호출 한 번이다.** 파일명은 `모델명_시험명_날짜시간.csv`의 영어 표기이며, 시각은 한국 시간이다. [실험별 CSV 목록과 열 설명](data/README.md)에서 실제 응답을 확인할 수 있다.
+
+<details>
+<summary>CSV를 읽고 직접 채점하는 방법</summary>
+
+| 확인할 내용 | 열 이름 |
+| --- | --- |
+| 공통 지시문과 입력 | `system_instruction`, `input_*` |
+| 모델의 최종 답변 | `decision`, 두 비율 필드, `reason`, `reflection_log` |
+| 추론 및 해석하지 못한 응답 | `thinking`, `unparsed_response` |
+| 요청 설정 | `num_ctx`, `num_predict`, `think`, `temperature` 등 |
+| 측정값 | `input_tokens`, `generated_tokens`, `wall_seconds`, `gpu_peak_mib`, `cost_usd` 등 |
+| 자동 검사 결과 | `json_valid`, `trading_valid`, `json_within_300_seconds` |
+| 설명 채점 | `review_1_*`~`review_3_*`, 총점 `score` |
+
+각 채점 항목에는 기대 설명, 입력 경로, 판정, 점수, 응답 인용과 판정 이유를 기록한다. `pass`는 1점, `partial`과 `fail`은 0점이다. 총점 `score`도 직접 작성하며 자동 합산하지 않는다.
+
+입력 JSON은 키 경로별 열로 나눈다. 예를 들어 첫 일봉 종가는 `input_market_input_ohlcv_day_1_close`이다. 30,000자가 넘는 긴 문자열만 같은 행의 `*_part_2` 등으로 나누며, 원래 필드와 순서대로 이어 붙이면 전체 내용이다.
+
+열 이름은 영어, 입력과 응답 및 한국어 채점 근거는 원문을 유지한다. 공란 측정값은 0이 아니라 미측정 또는 해당 없음이다. 새로운 호출 결과는 CSV에만 저장하며, 과거 SQLite는 증빙으로 남아 있을 뿐 현재 실행에는 사용하지 않는다.
+
+보존된 기록은 24개 CSV의 153개 시도, 151개 호출 원본과 채점이 있는 147개 결과이다. 핵심 결과 그림은 그중 영문 본 시험의 비교 결과이다.
+
+</details>
+
+## 직접 한 문항 실행하기
+
+저장소 루트의 PowerShell에서 실행한다. Python 3.12, uv와 실행 중인 Ollama 서버가 필요하다.
+
+```powershell
+uv sync --frozen --python 3.12
+ollama pull qwen3.5:9b
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --cases Q01 --repeat 1
+```
+
+실제 로컬 모델을 한 번 호출하며, 응답 검사와 `data` 폴더의 CSV 저장까지 수행한다. **설명 내용의 점수는 CSV에서 별도로 작성한다.**
+
+<details>
+<summary>다른 모델, 전체 문항과 외부 API 실행</summary>
+
+```powershell
+# Gemma 설치
+ollama pull gemma4:12b
+
+# Qwen 권장 비추론: 영문 10문항, 각 1회
+uv run --frozen python main.py --model qwen3.5:9b --condition recommended-nonthinking
+
+# Gemma 권장 추론: 영문 10문항, 각 1회
+uv run --frozen python main.py --model gemma4:12b --condition recommended-thinking
+
+# 기본 비추론: 영문 10문항, 각 2회
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking
+
+# 기본 추론: 생성 한도 4,096, 영문 10문항, 각 1회
+uv run --frozen python main.py --model gemma4:12b --condition basic-thinking --num-predict 4096 --repeat 1
+
+# 한국어 Q03, Q06, Q10: 각 2회, 별도 CSV
+uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --language ko
+
+# W00 워밍업: 본 시험과 별도 CSV
+uv run --frozen python main.py --model qwen3.5:9b --condition recommended-thinking --cases W00
+```
+
+`--cases`, `--repeat`, `--num-ctx`, `--num-predict`, `--timeout`으로 조건을 지정하고, `--output-dir`로 저장 폴더를 바꿀 수 있다. 기본 저장 위치는 현재 실행 폴더의 `data`이다. W00과 본 시험 문항은 한 CSV에 섞지 않는다.
+
+외부 API는 `.env`에 개인 `OPENAI_API_KEY`를 설정한 다음 아래 명령으로 별도 실행한다. Q01, Q03, Q06, Q08, Q10을 각 한 번 **유료 호출**한다.
+
+```powershell
+uv run --frozen python main.py --model gpt-5.6-luna --condition cloud
+```
+
+같은 이름의 CSV가 이미 있으면 덮어쓰지 않고 호출 전에 중단한다. 저장 실패, 모델 해제 실패와 특정 API 접근 오류에서도 후속 호출을 중단하며 자동 재시도하지 않는다. CSV 편집과 채점은 실행 종료 후 진행한다. 새 실행은 새 파일이며 중단된 파일을 자동으로 이어서 실행하지 않는다.
+
+</details>
+
+<details>
+<summary>노트북 사양, 후보 선정과 실제 실행 설정</summary>
+
+약 12GB VRAM에서 실행할 수 있는 양자화 배포와 Ollama 지원을 먼저 확인한 뒤, 공개 지능 점수와 지시 준수, 긴 자료 활용 지표를 참고했다. 서로 다른 계열의 **Qwen/Qwen3.5-9B**와 **google/gemma-4-12B-it**을 후보로 선택했다.
+
+| 환경 | 내용 |
+| --- | --- |
+| 장비 | ASUS ROG Zephyrus G14 GA403WR, Windows 11 Home 빌드 26200 |
+| CPU / RAM | AMD Ryzen AI 9 HX 370, 12코어 24스레드 / 64GB |
+| GPU | NVIDIA GeForce RTX 5070 Ti Laptop GPU, 조회 용량 12,227MiB |
+| 실행 도구 | Python 3.12.13, Ollama 0.33.3 |
+| 태그 / 양자화 | `qwen3.5:9b`, `gemma4:12b` / Q4_K_M |
+| 패키지 버전 | [uv.lock](uv.lock)에 고정 |
+
+| 실행 조건 | 문맥 창 | 생성 한도 | temperature / top_p / top_k | 관측 제한 |
 | --- | ---: | ---: | --- | ---: |
 | 기본 비추론, 두 모델 | 8,192 | 2,048 | 0 / 0.95 / 40 | 300초 |
 | 기본 추론, 두 모델 | 8,192 | 2,048 또는 4,096 | 0 / 0.95 / 40 | 300초 |
@@ -103,188 +259,18 @@ EMA는 비교를 위해 주어진 값이며 모델에게 지표 재계산을 요
 | 권장 추론, Qwen | 131,072 | 32,768 | 1.0 / 0.95 / 20 | 1,800초 |
 | 권장 비추론 및 추론, Gemma | 32,768 | 16,384 | 1.0 / 0.95 / 64 | 1,800초 |
 
-공통 seed 42, min_p 0, repeat_penalty 1, frequency_penalty 0이다. presence_penalty는 기본 설정과 Gemma에서 0, 권장 설정 Qwen에서 1.5이다. “기본 설정”은 이번 시험의 공통 설정을 뜻하며 Ollama 기본값과 같다는 의미는 아니다.
+공통 seed 42, min_p 0, repeat_penalty 1, frequency_penalty 0이다. presence_penalty는 권장 Qwen에서 1.5, 나머지는 0이다. 기본 설정은 실험자가 정한 공통 설정이며 Ollama 기본값이라는 뜻은 아니다.
 
-Qwen은 일반 과제의 공식 권장 샘플링과 생성 한도, Serving 절의 문맥 안내를 적용했다. Gemma의 공식 샘플링을 적용하되 문맥 32,768과 생성 16,384는 실행자가 정한 한도이다. 1,800초는 답변 완료를 관찰하기 위한 제한이며 **300초 내 반환이라는 운영 요구는 별도로 평가**했다.
+Qwen은 일반 과제의 권장 샘플링과 생성 한도, Serving의 문맥 안내를 적용했다. Gemma의 문맥과 생성 한도는 실행자가 지정했다. 1,800초는 답변 완료 관찰용이며 300초 이내 응답 요구와 구분한다. 코드의 `recommended`는 시험 당시 설정을 재사용하는 이름으로, 최신 문서를 자동 반영하지 않는다.
 
-공식 출처: [Qwen Best Practices 및 Serving](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), [Gemma Best Practices](https://ai.google.dev/gemma/docs/core/model_card_4#best-practices). 실제 지시문과 입력 자료, 요청 설정은 실험별 CSV에서 확인할 수 있다.
+모델은 하나씩 적재하고 호출 후 해제했다. 전체 응답 시간에는 로딩과 입력 처리, 추론 및 최종 답변 생성이 포함된다. GPU 전체 메모리는 `nvidia-smi`로 약 1초 간격 관측하고, 응답 후 Ollama의 모델 적재량과 구분했다. Qwen 권장 설정에서는 일부 CPU 분산 적재가 관측됐다.
 
-### 점수와 통과 조건
+[공개 모델 평가](https://artificialanalysis.ai/models/open-source/small) · [Qwen 공식 문서](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices) · [Gemma 공식 문서](https://ai.google.dev/gemma/docs/core/model_card_4#best-practices)
 
-평가는 다음 세 가지로 나눴다.
+</details>
 
-1. **형식 검사:** 코드로 다섯 JSON 필드, 자료형, 허용값과 중복 키 확인
-2. **거래 제한 검사:** 코드로 의견과 비율, 가용 잔액, 수수료와 최소 주문, 누락 시 보류 규칙 확인
-3. **설명 평가:** Codex가 최종 답변을 입력 수치와 계산식에 대조하고 인용문, 입력 위치와 판정 이유 기록
+---
 
-의미에 대한 판정은 자동 채점 코드가 수행한 것이 아니다. 기존 시험의 판정은 당시 입력과 응답을 대조해 작성한 결과이며, 현재 CSV에는 해당 점수와 한국어 근거를 보존했다. 새 시험은 같은 채점란에 직접 판정을 작성한다.
+**결론:** 이 노트북에서 답변 생성은 가능했지만, JSON 반환만으로 자료 해석의 정확성을 보장할 수는 없었다. 실행 설정, 최종 답변의 누락과 오류, 응답 시간 및 자원 사용량을 함께 확인해야 한다.
 
-문항별 필수 세 항목은 완전 충족 1점, 부분 누락 또는 오류 0점이다. 같은 값에 대한 모순도 미충족으로 처리한다. 최종 답변 미완료는 0/3점으로 처리하되 내용 오류와 구분하며, 판정할 결정이 없으면 거래 제한은 판정 불가이다. 미실행과 미검토를 채점 완료로 처리하지 않는다. 필수 항목 밖의 잘못된 주장도 별도로 기록했다.
-
-기본 비추론의 사전 기준은 모델별 20회 중 19회 이상 300초 내 지정 JSON, 사실 54/60점 이상, 중대한 거래 제한 위반 0건이다. 회고는 Q07~Q10의 점수로 전체 점수에 포함된다. 후보 간 우선순위는 필수 조건 충족 여부, 사실 설명, 회고, 시간, GPU 사용량 순서이며 선호 시간은 중앙값 60초 이내다. 권장 설정은 모델별 10응답으로 반복 수가 달라 기존 20회 통과 판정을 직접 적용하지 않았다.
-
-### 측정과 해석 범위
-
-전체 응답 시간은 로딩과 입력 처리, 추론 및 최종 답변 생성을 포함한다. 입력과 생성 토큰은 서버 보고값을 사용했다. GPU 전체 사용량은 nvidia-smi로 약 1초마다 관측하고, 응답 후 Ollama에서 조회한 모델 적재량과 구분했다. 다른 앱과 전원 및 열 상태를 완전히 통제한 성능 시험은 아니다.
-
-여러 설정을 함께 바꿨고 Qwen은 권장 모드별 샘플링도 다르므로, 점수 변화가 추론 기능이나 단일 설정의 효과라고 단정하지 않는다. 기본 설정의 반복 응답이 같았다는 관찰도 새로운 시장 상황을 여러 번 검증했다는 뜻은 아니다.
-
-## 한국어 입력과 Cloud 비교
-
-기본 비추론의 Q03, Q06, Q10을 한국어로 모델별 두 번씩 제공했다. 모델당 한국어 6응답의 필수 사실은 둘 다 6/18점, 같은 문항의 영문은 Qwen 8/18점, Gemma 12/18점이다. 영문에도 오류가 남아 한국어만이 원인이라고 결론 내리지 않았다. 한국어 문체는 평가하지 않았으며 추론의 한국어 시험을 수행한 것으로 합산하지 않는다.
-
-Luna는 Q01, Q03, Q06, Q08, Q10을 각 한 번씩 실행해 지정 JSON 5/5, 필수 사실 15/15, 평균 8.539초를 기록했다. 추론은 none, temperature 0, 출력 한도 2,048이다. 로컬의 공통 5문항 기본 비추론은 두 번씩 실행해 Qwen 18/30, Gemma 24/30이었다. 문항 수와 반복 수가 다른 전체 모델 순위로 확대하지 않는다.
-
-사용량과 당시 단가로 계산한 5회 비용은 **USD 0.00375315**, 평균 **USD 0.00075063/회**이다. 같은 입력과 출력 분량, 24시간 운영, 30일을 가정하면 다음과 같다.
-
-| 호출 간격 | 하루 / 30일 호출 수 | 하루 예상 비용 | 30일 예상 비용 |
-| --- | ---: | ---: | ---: |
-| 30분마다 한 번 | 48 / 1,440 | 약 $0.0360 | 약 **$1.08** |
-| 1시간마다 한 번 | 24 / 720 | 약 $0.0180 | 약 **$0.54** |
-
-이는 **비추론 시험 사용량을 환산한 비용**이다. 실제 비용은 입력과 출력 길이, 캐시, 추론량과 재시도에 따라 달라진다. 세금 및 환율은 포함하지 않았으며 청구서 확정 금액도 아니다. 호출별 사용량과 산출 비용은 [Luna 결과 CSV](data/gpt-5.6-luna_cloud-nonthinking-english_20260915-210424.csv), 적용 단가와 출처는 [API 호출 코드](modules/call_openai.py)에 보존했다. 로컬 전기요금은 측정하지 않았다.
-
-## 코드 구조
-
-```text
-main.py                    # 설정과 문항 선택, 호출 및 검사와 저장 순서
-modules/
-├── cases.json             # 가상 입력, 기대 답변과 문항별 채점 기준
-├── prompt.py              # 공통 지시문과 입력 자료로 요청 메시지 구성
-├── call_ollama.py          # Ollama 호출, 시간과 GPU 측정, 모델 해제
-├── call_openai.py          # OpenAI 호출, 시간과 토큰 및 비용 계산
-├── save_csv.py             # 호출당 한 행 저장, 입력 분리와 채점란 보존
-└── validate_response.py    # 공통 JSON 스키마, 형식과 정답 및 거래 규칙 검사
-data/                      # 모델과 조건별 결과 CSV
-reports/                   # 최종 보고서와 실험 집계 엑셀 파일
-```
-
-실행 순서는 **가상 자료 읽기 → 지시문과 입력 구성 → 모델 호출 → 응답 검사 → CSV 저장**이다. `main.py`에서 선택한 문항을 반복하며, 응답을 저장한 다음 문항으로 이동한다.
-
-`cases.json`의 문항은 세 부분으로 구분한다.
-
-- `input`: 모델에 전달할 시장 자료, 계좌와 이력, 거래 규칙과 필수 질문.
-- `expected`: 검사에 사용할 허용 결정과 별도 검토 기준.
-- `rubric`: 필수 세 항목의 기대 설명과 근거가 되는 입력 위치.
-
-`prompt.py`의 `build_messages(input_data, language)`는 자료를 인자로 받아 공통 지시문과 현재 입력만 담은 메시지를 만든다. 이 함수는 가상 사례 파일이나 특정 데이터 공급자를 직접 읽지 않는다. 현재는 `case["input"]`을 전달하며, 이후 Upbit 자료를 사용하려면 수집 결과를 같은 입력 구조로 변환해 전달할 수 있다. 이번 변경에 실제 수집이나 주문 기능을 추가하지 않았다.
-
-현재 응답 검사는 **가상 문항의 정답을 함께 받는 방식**이다. `validate_response(case["input"], response, case["expected"])`가 JSON 구조, 허용된 결정과 비율, 잔액 및 수수료와 최소 주문금액을 확인한다. 기대 답변과 채점 기준은 모델에 보내지 않는다. 설명의 사실 정확성은 자동 판정하지 않으며, 입력과 기대 설명을 대조해 CSV의 단일 채점란에 작성한다. 기존 한국어 채점 근거는 그대로 유지했다.
-
-실험 관리용 ID, 해시 생성과 매 호출 전 파일 변경 감시는 제거했다. 별도 JSON 보조 모듈과 출력 스키마 파일은 `validate_response.py`로 통합했다. 호출 코드는 시간 제한과 부분 응답 보존, 자원 측정, 모델 해제 및 유료 자동 재시도 차단을 담당한다. 저장 코드는 파일 덮어쓰기 방지, 저장 실패 시 중단과 기존 채점 보존을 담당한다.
-
-## 실행 예시
-
-```python
-from modules.prompt import build_messages
-from modules.validate_response import get_response_schema, validate_response
-from modules.call_ollama import call_ollama
-
-# 사례 선택과 CSV 저장을 포함한 실제 전체 실행은 main.py에서 수행
-messages = build_messages(case["input"], language="en")
-record = call_ollama(
-    "qwen3.5:9b", messages,
-    num_ctx=8192, num_predict=2048, thinking=False,
-    output_format=get_response_schema(),
-)
-checks = validate_response(case["input"], record["content"], case["expected"])
-```
-
-위 코드는 함수 사이에 어떤 값을 전달하는지 보여주는 발췌다. 전체 실험은 아래 명령으로 실행하며, CSV 저장은 `main.py`가 처리한다.
-
-## 결과 CSV 확인
-
-[실험별 CSV 목록과 읽는 방법](data/README.md)에서 파일을 선택한다. 모델, 설정, 입력 언어와 단계가 다른 결과는 별도 파일이다. 생성 한도 2,048과 4,096의 추론 결과도 구분했다.
-
-CSV의 **한 행은 호출 한 번**이다. 별도의 시험 정보 행이나 원문 계속 행이 없으므로 행 종류를 필터링할 필요가 없다. 파일명에서 모델과 시험 조건을 확인하고, 각 행에서 실제 지시문, 개별 입력값, 다섯 출력 필드, 설정, 측정값과 채점을 확인한다.
-
-| 내용 | 확인할 열 |
-| --- | --- |
-| 실제 공통 지시문 | `system_instruction` |
-| 실제 입력 | `input_`으로 시작하는 열, 원래 JSON의 키 경로와 배열 순서에 따라 분리 |
-| 반환값 | `decision`, `buy_allocation_percentage`, `sell_allocation_percentage`, `reason`, `reflection_log` |
-| 추론과 파싱 불가 응답 | `thinking`, `unparsed_response` |
-| 요청 설정 | `num_ctx`, `num_predict`, `think`, `temperature`, `top_p` 등 |
-| 측정값 | `input_tokens`, `generated_tokens`, `wall_seconds`, `load_seconds`, `gpu_peak_mib`, `cost_usd` 등 |
-| 자동 검사 | `json_valid`, `trading_valid`, `json_within_300_seconds` |
-| 사실 채점 | `review_1_*`~`review_3_*`의 기대 설명, 입력 위치, 판정, 점수, 인용문, 근거 및 총점 `score` |
-| 추가 관찰 | `observation_1_*` 등의 별도 오류, 인용문, 입력 위치와 한국어 근거 |
-
-예를 들어 첫 일봉의 종가는 `input_market_input_ohlcv_day_1_close`, 공포탐욕지수 값은 `input_market_input_fear_and_greed_value`다. 배열은 1부터 번호를 붙이고 `*_count`로 길이를 표시한다. 명시적 결측값은 `null`, 빈 배열은 count 0으로 구분한다. 컬럼명은 영어이며 **입력, 응답, 인용문과 한국어 채점 근거는 원문 그대로 유지**한다. 관리용 시도 ID, 호출 ID, 모델명, 조건명, 단계, 언어, 반복 번호와 상태 열은 저장하지 않는다. 가상 주문 번호처럼 실제 입력에 포함된 값은 보존한다.
-
-기존 점수는 저장된 최신 필수 항목 판정을 옮긴 값이다. 새 호출의 판정과 점수는 공란이며, `pass`는 1점, `partial`과 `fail`은 0점이다. 세 점수의 합계를 `score`에 직접 작성하며, 코드가 사실의 의미를 자동 채점하거나 합계를 자동 갱신하지 않는다. 검토자 정보나 별도 재검토 열은 없다.
-
-30,000자를 넘는 문자열만 같은 행의 `thinking_part_2`처럼 뒤이은 열로 나눈다. 필드 원문과 part_2, part_3을 순서대로 연결하면 전체 문장이다. 원래 JSON의 공백과 키 순서까지 중복 저장하는 대신, 파싱한 다섯 출력값을 저장한다. JSON 파싱에 실패한 응답은 교정 없이 `unparsed_response`에 남긴다.
-
-측정값 공란은 미측정 또는 해당 없음이며 0이 아니다. 중단되어 응답 원본이 없는 과거 2건과 미채점 워밍업 4건의 점수는 공란으로 유지했다. 길이 제한으로 최종 답변이 나오지 않아 받은 0점은 미완료에 대한 당시 판정이며, 추론 내용 전체가 틀렸다는 뜻이 아니다.
-
-## 설치와 새 실험 실행
-
-저장소 루트의 PowerShell 기준이다. Python 3.12와 uv를 사용한다. CSV 열람에는 Ollama 서버나 API 키가 필요 없다.
-
-```powershell
-uv sync --frozen --python 3.12
-ollama pull qwen3.5:9b
-ollama pull gemma4:12b
-```
-
-각 명령은 **모델 하나, 실행 조건 하나, 언어 하나의 CSV 한 개**를 만든다. 파일명은 영문 `model_trial_YYYYMMDD-HHMMSS.csv`이며 한국 시간의 시험 시작 시각을 사용한다. 임의 식별값이나 순번은 붙이지 않고, 같은 이름이 이미 있으면 기존 파일을 보존한 채 호출 전에 중단한다. 실패한 호출을 자동으로 다시 실행하거나 다른 실험과 합치지 않는다.
-
-```powershell
-# Qwen 권장 설정 비추론, 영문 10문항 각 1회
-uv run --frozen python main.py --model qwen3.5:9b --condition recommended-nonthinking
-
-# Gemma 권장 설정 추론, 영문 10문항 각 1회
-uv run --frozen python main.py --model gemma4:12b --condition recommended-thinking
-
-# Qwen 기본 설정 비추론, 영문 10문항 각 2회
-uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking
-
-# Gemma 기본 설정 추론, 생성 한도 4,096, 영문 10문항 각 1회
-uv run --frozen python main.py --model gemma4:12b --condition basic-thinking --num-predict 4096 --repeat 1
-
-# 한국어 세 문항 각 2회, 별도 CSV
-uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --language ko
-
-# W00 워밍업 1회, 본 시험과 별도 CSV
-uv run --frozen python main.py --model qwen3.5:9b --condition recommended-thinking --cases W00
-```
-
-`--cases Q01 Q03`으로 문항을 선택하고, `--repeat`, `--num-ctx`, `--num-predict`, `--timeout`으로 시험 조건을 명시할 수 있다. 기본 저장 위치는 `data`이며 `--output-dir`로 변경할 수 있다. W00과 본 시험 문항은 한 파일에 섞지 않는다.
-
-`recommended`는 2026-09-16 실험에서 사용한 모델별 권장 샘플링과 운영자가 정한 실행 한도를 재사용하는 이름이다. 최신 공식 문서를 자동으로 반영하는 기능은 아니다. 시험 시작 전에 로컬 모델의 설치 여부와 다른 모델의 적재 여부를 확인한다. 실행 코드의 해시 감시와 설치 메타데이터의 중복 기록은 하지 않으므로, 시험 중 코드나 설치 모델을 변경하지 않는 조건이다.
-
-Luna는 `.env`에 `OPENAI_API_KEY`를 설정한 후 아래 명령을 명시적으로 실행한다. Q01, Q03, Q06, Q08, Q10을 한 번씩 유료 호출하고 별도 CSV 한 개를 만든다. 로컬 명령은 Luna를 자동 호출하지 않는다.
-
-```powershell
-uv run --frozen python main.py --model gpt-5.6-luna --condition cloud
-```
-
-실행 중인 CSV를 다른 프로그램이 잠그거나 저장에 실패하면 다음 호출을 중단한다. 편집과 채점은 실험 종료 후 진행한다. 일반 예외와 Ctrl+C는 오류 행을 저장한 뒤 처리한다. 프로세스 강제 종료나 전원 차단으로 호출 함수가 반환하지 못한 결과는 CSV에 남지 않을 수 있다. 다음 실행은 새 실험이며 중단된 파일을 자동으로 이어서 호출하지 않는다.
-
-## 보존된 실험 기록
-
-`data`의 기존 결과는 24개 CSV에 153개 시도와 151개 호출 원본, 채점이 있는 147개 결과를 담고 있다. 당시 입력, 응답, 측정값과 점수를 그대로 보존한 자료다. 완료된 CSV를 다시 생성하거나 채점 결과를 덮어쓰지 않는다.
-
-이전 실험의 원본 SQLite 파일은 증빙으로 보존했으며 현재 프로그램에서는 사용하지 않는다. 과거 보고서에 있는 저장 방식과 명령은 당시 이력이다. 현재 코드는 CSV 생성부터 시작하며 실행 방법은 위 명령을 기준으로 한다.
-
-## 실행하면서 응답 검사하기
-
-별도 tests 폴더나 검사 전용 실행 명령 없이 `main.py`에서 모델 호출과 응답 검사를 함께 수행한다. 빠르게 확인하려면 문항과 반복 수를 지정한다.
-
-```powershell
-uv run --frozen python main.py --model qwen3.5:9b --condition basic-nonthinking --cases Q01 --repeat 1
-```
-
-위 명령은 실제 모델을 한 번 호출하고 결과를 `data`에 저장한다. 완료 시 화면과 CSV에서 다음 항목을 확인한다.
-
-| 항목 | 확인 내용 |
-| --- | --- |
-| `final_response_complete` | 화면에 표시하는 최종 응답 완료 여부, 생성 한도 도달과 정상 완료의 구분 |
-| `json_valid` | JSON 객체와 중복 키, 다섯 필드, 자료형과 허용값 및 빈 설명 검사 |
-| `trading_valid` | 가상 문항의 허용 결정, 의견과 비율, 잔액 및 최소 주문금액 검사 |
-| `error_message` | CSV에 저장하는 호출 오류와 응답 검사 실패의 구체적 사유, 화면에서는 errors로 표시 |
-
-정상 JSON이어도 가상 정답이나 거래 규칙을 어기면 거래 검사는 실패할 수 있다. 형식이 잘못되어 결정을 검사할 수 없으면 거래 검사 결과는 판정 불가이며 CSV에서는 공란이다. 실패 응답도 원문과 검사 결과를 그대로 저장한다.
-
-사실 설명의 의미와 완전성은 별도의 자동 점수로 만들지 않는다. 가상 문항의 기대 설명과 모델 응답을 대조해 기존 CSV 채점란에 작성한다. 과거 보고서의 자동 검사 횟수는 당시 코드 점검 이력이며 현재 실행에 필요한 별도 구성 요소가 아니다.
+[전체 결과와 한계는 최종 보고서에서 확인하기 →](reports/final_report.md)
